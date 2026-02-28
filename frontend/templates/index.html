@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Bedrock Profile Manager</title>
+    <link rel="stylesheet" href="/static/style.css?v=7">
+</head>
+<body>
+    <div class="layout">
+        <!-- 左侧导航 -->
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <h2>Bedrock Inference<br>Profiles Manager</h2>
+                <button class="toggle-sidebar" onclick="toggleSidebar()">◀</button>
+            </div>
+            <nav class="sidebar-nav">
+                <a href="#" class="nav-item active" data-view="profiles">
+                    <span class="icon">📋</span>
+                    <span class="nav-text">View Profiles</span>
+                </a>
+                <a href="#" class="nav-item" data-view="create">
+                    <span class="icon">➕</span>
+                    <span class="nav-text">Create Profiles</span>
+                </a>
+                <a href="#" class="nav-item" data-view="myprofiles">
+                    <span class="icon">📦</span>
+                    <span class="nav-text">My Profiles</span>
+                </a>
+                <a href="#" class="nav-item" data-view="map">
+                    <span class="icon">📊</span>
+                    <span class="nav-text">Bedrock MAP Dashboard</span>
+                </a>
+            </nav>
+        </aside>
+
+        <!-- 主内容区 -->
+        <main class="main-content">
+            <!-- 顶部控制栏 - 只在 View Profiles 页面显示 -->
+            <div class="top-bar" id="topBar">
+                <select id="awsProfile"></select>
+                <select id="region">
+                    <option value="us-east-1">us-east-1 (N. Virginia)</option>
+                    <option value="us-east-2">us-east-2 (Ohio)</option>
+                    <option value="us-west-1">us-west-1 (N. California)</option>
+                    <option value="us-west-2">us-west-2 (Oregon)</option>
+                    <option value="ap-south-1">ap-south-1 (Mumbai)</option>
+                    <option value="ap-northeast-1">ap-northeast-1 (Tokyo)</option>
+                    <option value="ap-northeast-2">ap-northeast-2 (Seoul)</option>
+                    <option value="ap-southeast-1">ap-southeast-1 (Singapore)</option>
+                    <option value="ap-southeast-2">ap-southeast-2 (Sydney)</option>
+                    <option value="ca-central-1">ca-central-1 (Central)</option>
+                    <option value="eu-central-1">eu-central-1 (Frankfurt)</option>
+                    <option value="eu-west-1">eu-west-1 (Ireland)</option>
+                    <option value="eu-west-2">eu-west-2 (London)</option>
+                    <option value="eu-west-3">eu-west-3 (Paris)</option>
+                    <option value="sa-east-1">sa-east-1 (São Paulo)</option>
+                </select>
+                <button onclick="loadData()" class="btn-primary">🔄 Load Profiles</button>
+            </div>
+
+            <!-- View Profiles -->
+            <div id="profilesView" class="view active">
+                <div class="view-header">
+                    <h2>Inference Profiles & Foundation Models</h2>
+                    <button onclick="showProfileHelp()" class="btn-help" title="Learn about profile types">
+                        ❓ Profile Types
+                    </button>
+                </div>
+                <div id="providerFilters" class="filters"></div>
+                <div id="profilesList"></div>
+            </div>
+
+            <!-- Create Profiles -->
+            <div id="createView" class="view">
+                <div class="view-header">
+                    <h2>Create New Inference Profiles</h2>
+                    <div class="view-actions">
+                        <span id="selectedCount" class="count-badge">0 selected</span>
+                    </div>
+                </div>
+                <div class="map-notice">
+                    <div class="map-notice-title">⚠️ MAP 2.0 Important Notes for Bedrock</div>
+                    <ol class="map-notice-list">
+                        <li>Customers <strong>must use an Inference Profile</strong> for any model usage and tag according to MAP Tagging Instructions.</li>
+                        <li>Customers must gain access to supported foundation models <strong>only via Amazon Bedrock Console or API</strong>.</li>
+                        <li>Volume-based discounts (e.g. Provisioned Throughput) must be purchased <strong>only via Bedrock Console or API</strong>.</li>
+                        <li>Valid for MAP 2.0 Migration plans accepted <strong>after 16-Dec-2024</strong>.</li>
+                        <li><strong>Excludes</strong> spend from AWS Marketplace Private Offers.</li>
+                    </ol>
+                    <div class="map-disclaimer">⚙️ 本工具仅供辅助参考，具体商务事宜请联系您的 AWS BD/SA 团队；协议条款与资格认定请以最新商务合同为准。</div>
+                </div>
+                <div class="form-container">
+                    <div class="form-group">
+                        <label>Tags Configuration:</label>
+                        <div id="createTagInputs">
+                            <div class="tag-input-row">
+                                <input type="text" value="map-migrated" class="tag-key" placeholder="Key">
+                                <input type="text" value="migXXXXXXXXXX" class="tag-value" placeholder="Value">
+                                <button onclick="removeTagRow(this)" class="btn-danger">✕</button>
+                            </div>
+                        </div>
+                        <button onclick="addCreateTagRow()" class="btn-secondary">+ Add Tag</button>
+                    </div>
+                </div>
+                <div id="selectedProfilesList"></div>
+                <div id="createResult"></div>
+            </div>
+
+            <!-- My Profiles -->
+            <div id="myprofilesView" class="view">
+                <div class="view-header">
+                    <h2>My Created Profiles</h2>
+                    <div class="view-actions">
+                        <span id="myProfilesCount" class="count-badge">0 profiles</span>
+                        <button onclick="loadMyProfiles()" class="btn-primary">🔄 Refresh</button>
+                    </div>
+                </div>
+                <div id="myProfilesFilters"></div>
+                <div id="myProfilesList"></div>
+            </div>
+
+            <!-- MAP Dashboard -->
+            <div id="mapView" class="view">
+                <div class="view-header">
+                    <h2>Bedrock MAP Dashboard</h2>
+                    <div class="view-actions">
+                        <select id="mapProjectId" onchange="filterMapDashboard()">
+                            <option value="">All MAP Projects</option>
+                        </select>
+                        <select id="mapTimeRange" onchange="loadMapDashboard()">
+                            <option value="3">Last 3 days</option>
+                            <option value="7" selected>Last 7 days</option>
+                            <option value="30">Last 30 days</option>
+                        </select>
+                        <button onclick="loadMapDashboard()" class="btn-primary">🔄 Refresh</button>
+                    </div>
+                </div>
+                <div class="map-notice map-notice-compact">
+                    <span class="map-notice-title">⚠️ MAP 2.0 Reminder:</span>
+                    Only usage through <strong>Inference Profiles with correct map-migrated tag</strong> is eligible for MAP credits. Direct foundation model calls are NOT counted.
+                    <span class="map-disclaimer-inline">本工具仅供辅助参考，具体商务事宜请联系您的 AWS BD/SA 团队；协议条款与资格认定请以最新商务合同为准。</span>
+                </div>
+                <div id="mapSummary"></div>
+                <div id="mapContent"></div>
+            </div>
+
+            <!-- Generate YAML -->
+            <div id="yamlView" class="view">
+                <div class="form-container">
+                    <h2>Generate YAML Configuration</h2>
+                    <div class="form-group">
+                        <label>Filter Keyword:</label>
+                        <input type="text" id="yamlKeyword" placeholder="e.g., claude, llama">
+                    </div>
+                    <div class="form-group">
+                        <label>Tag Value (map-migrated):</label>
+                        <input type="text" id="yamlTagValue" value="migXXXXXXXXXX">
+                    </div>
+                    <button onclick="generateYaml()" class="btn-primary">Generate YAML File</button>
+                    <div id="yamlResult"></div>
+                </div>
+            </div>
+
+            <!-- Create Tags -->
+            <div id="tagsView" class="view">
+                <div class="form-container">
+                    <h2>Apply Tags to Profile</h2>
+                    <div class="form-group">
+                        <label>Profile ARN:</label>
+                        <input type="text" id="tagProfileArn" placeholder="arn:aws:bedrock:...">
+                    </div>
+                    <div class="form-group">
+                        <label>Tags:</label>
+                        <div id="tagInputs">
+                            <div class="tag-input-row">
+                                <input type="text" placeholder="Key" class="tag-key">
+                                <input type="text" placeholder="Value" class="tag-value">
+                            </div>
+                        </div>
+                        <button onclick="addTagInput()" class="btn-secondary">+ Add Tag</button>
+                    </div>
+                    <button onclick="createTags()" class="btn-primary">Apply Tags</button>
+                    <div id="tagResult"></div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Profile Types Help Modal -->
+    <div id="profileHelpModal" class="modal" style="display: none;">
+        <div class="modal-content" style="max-width: 700px;">
+            <div class="modal-header">
+                <h2>📚 Inference Profile Types</h2>
+                <button onclick="closeProfileHelp()" class="btn-close">✕</button>
+            </div>
+            <div class="modal-body" style="line-height: 1.8;">
+                <div class="help-section">
+                    <h3>🌍 Global Profiles</h3>
+                    <p>Cross-region profiles that route requests to any commercial AWS region globally for optimal performance and availability.</p>
+                    <p><strong>Example:</strong> <code>global.anthropic.claude-sonnet-4-...</code></p>
+                    <p><strong>ARN:</strong> <code>arn:aws:bedrock:REGION:ACCOUNT:inference-profile/global.MODEL-ID</code></p>
+                </div>
+
+                <div class="help-section">
+                    <h3>🗺️ Regional Profiles</h3>
+                    <p>Geographic-specific profiles that route within a defined region (US, EU, APAC, etc.) for data residency requirements.</p>
+                    <p><strong>Example:</strong> <code>us.anthropic.claude-3-haiku-...</code>, <code>eu.anthropic.claude-...</code></p>
+                    <p><strong>ARN:</strong> <code>arn:aws:bedrock:REGION:ACCOUNT:inference-profile/GEOGRAPHY.MODEL-ID</code></p>
+                </div>
+
+                <div class="help-section">
+                    <h3>📦 Application Profiles</h3>
+                    <p>Custom profiles you create to configure specific models with tags and settings for your applications.</p>
+                    <p><strong>Example:</strong> <code>web-test-my-profile</code>, <code>prod-chatbot-profile</code></p>
+                    <p><strong>ARN:</strong> <code>arn:aws:bedrock:REGION:ACCOUNT:application-inference-profile/PROFILE-ID</code></p>
+                </div>
+
+                <div class="help-section">
+                    <h3>🤖 Foundation Models</h3>
+                    <p>Base models provided by AWS and partners, invoked directly without inference profiles.</p>
+                    <p><strong>Example:</strong> <code>anthropic.claude-sonnet-4-...</code>, <code>amazon.nova-pro-v1:0</code></p>
+                    <p><strong>ARN:</strong> <code>arn:aws:bedrock:REGION::foundation-model/MODEL-ID</code></p>
+                </div>
+
+                <div class="help-section" style="background: #f0f8ff; padding: 15px; border-radius: 8px; margin-top: 20px;">
+                    <h3>📖 Learn More</h3>
+                    <p>For detailed information about inference profiles and cross-region inference:</p>
+                    <a href="https://docs.aws.amazon.com/bedrock/latest/userguide/inference-profiles.html" 
+                       target="_blank" 
+                       class="btn-link"
+                       style="display: inline-block; margin-top: 10px; color: #0073bb; text-decoration: none; font-weight: bold;">
+                        📄 AWS Bedrock Inference Profiles Documentation →
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="/static/app.js?v=8"></script>
+</body>
+</html>
