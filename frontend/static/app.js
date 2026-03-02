@@ -1,12 +1,14 @@
 let allProfiles = {};
 let selectedProfiles = new Set();
 let selectedProfilesData = new Map();
+let mapSelectedModels = new Set(); // MAP Dashboard 选中的 modelId
 let filters = {
     providers: new Set(),
     tags: null,
     scope: null,
     modelId: '',
-    excludeDataZone: true  // 默认排除 DataZone profiles
+    excludeDataZone: true,  // 默认排除 DataZone profiles
+    excludeInferenceOnly: false  // 默认不排除 INFERENCE_PROFILE_ONLY
 };
 
 // HTML 转义函数，防止 XSS
@@ -501,9 +503,11 @@ function renderFilters() {
     // DataZone section
     const dzSection = document.createElement('div');
     dzSection.className = 'filter-section';
-    dzSection.innerHTML = '<div class="filter-header"><h3>Exclude DataZone</h3></div>';
+    dzSection.innerHTML = '<div class="filter-header"><h3>Exclude</h3></div>';
     const dzOptions = document.createElement('div');
     dzOptions.className = 'filter-options';
+    
+    // Hide DataZone checkbox
     const dzLabel = document.createElement('label');
     dzLabel.className = 'checkbox-label';
     const dzCheckbox = document.createElement('input');
@@ -515,6 +519,20 @@ function renderFilters() {
     dzSpan.textContent = 'Hide DataZone';
     dzLabel.append(dzCheckbox, dzSpan);
     dzOptions.appendChild(dzLabel);
+    
+    // Hide INFERENCE_PROFILE_ONLY checkbox
+    const ioLabel = document.createElement('label');
+    ioLabel.className = 'checkbox-label';
+    const ioCheckbox = document.createElement('input');
+    ioCheckbox.type = 'checkbox';
+    ioCheckbox.id = 'excludeInferenceOnly';
+    ioCheckbox.checked = filters.excludeInferenceOnly;
+    ioCheckbox.onchange = function() { toggleInferenceOnlyFilter(this.checked); };
+    const ioSpan = document.createElement('span');
+    ioSpan.textContent = 'Hide INFERENCE_PROFILE_ONLY';
+    ioLabel.append(ioCheckbox, ioSpan);
+    dzOptions.appendChild(ioLabel);
+    
     dzSection.appendChild(dzOptions);
     content.appendChild(dzSection);
     
@@ -544,6 +562,12 @@ function toggleFilters() {
 // 切换 DataZone 过滤
 function toggleDataZoneFilter(checked) {
     filters.excludeDataZone = checked;
+    renderProfiles();
+}
+
+// 切换 INFERENCE_PROFILE_ONLY 过滤
+function toggleInferenceOnlyFilter(checked) {
+    filters.excludeInferenceOnly = checked;
     renderProfiles();
 }
 
@@ -643,6 +667,11 @@ function renderProfiles() {
                 return;
             }
             
+            // 排除 INFERENCE_PROFILE_ONLY
+            if (filters.excludeInferenceOnly && p.inferenceOnly) {
+                return;
+            }
+            
             const card = document.createElement('div');
             card.className = 'profile-card';
             
@@ -729,11 +758,23 @@ function renderProfiles() {
             
             card.style.userSelect = 'text';
             
-            card.addEventListener('click', (e) => {
-                if (!e.target.closest('.btn-details') && !window.getSelection().toString()) {
-                    toggleProfileSelection(card, p);
-                }
-            });
+            // Disable selection for INFERENCE_PROFILE ONLY models
+            if (p.inferenceOnly) {
+                card.classList.add('disabled');
+                card.title = 'Cannot create application profile: This model only supports INFERENCE_PROFILE type';
+            } 
+            // Disable selection for application profiles (cannot create profile from profile)
+            else if (p.inferenceProfileArn && p.inferenceProfileArn.includes('application-inference-profile')) {
+                card.classList.add('disabled');
+                card.title = 'Cannot create profile from application profile';
+            }
+            else {
+                card.addEventListener('click', (e) => {
+                    if (!e.target.closest('.btn-details') && !window.getSelection().toString()) {
+                        toggleProfileSelection(card, p);
+                    }
+                });
+            }
             
             grid.appendChild(card);
         });
@@ -749,6 +790,7 @@ function renderProfiles() {
         safeSetHTML(resultsPanel, `
             <div class="results-header">
                 <h3>Search Results</h3>
+                <div id="selectedProfilesMini" class="selected-profiles-mini"></div>
                 <div class="results-actions">
                     <span id="profileCount" class="count-badge">${escapeHtml(String(grid.children.length))} profiles</span>
                     <button onclick="selectAllProfiles()" class="btn-secondary">Select All</button>
@@ -762,12 +804,8 @@ function renderProfiles() {
         container.innerHTML = '';
         container.appendChild(resultsPanel);
         updateProfileCount(grid.children.length);
+        updateSelectedProfilesMini();
     }
-}
-
-// 显示详情（可以用模态框）
-function showDetails(profile) {
-    // 不再需要
 }
 
 // 搜索过滤
@@ -923,6 +961,7 @@ function toggleProfileSelection(card, profile) {
     
     // 更新按钮状态
     updateSelectionUI();
+    updateSelectedProfilesMini();
 }
 
 // 更新选择UI状态
@@ -943,6 +982,44 @@ function updateSelectionUI() {
     if (createView && createView.classList.contains('active')) {
         updateSelectedProfilesList();
     }
+}
+
+// 更新 mini 选中提示区
+function updateSelectedProfilesMini() {
+    const miniContainer = document.getElementById('selectedProfilesMini');
+    if (!miniContainer) return;
+    
+    if (selectedProfiles.size === 0) {
+        miniContainer.innerHTML = '';
+        miniContainer.style.display = 'none';
+        return;
+    }
+    
+    miniContainer.style.display = 'flex';
+    let html = '';
+    for (const [arn, data] of selectedProfilesData) {
+        const shortName = data.name.length > 30 ? data.name.substring(0, 30) + '...' : data.name;
+        html += `<span class="mini-profile-tag" onclick="removeProfileSelection('${escapeHtml(arn)}')" title="${escapeHtml(data.name)}">
+            ${escapeHtml(shortName)} <span class="mini-tag-close">✕</span>
+        </span>`;
+    }
+    safeSetHTML(miniContainer, html);
+}
+
+// 移除单个选中的 profile
+function removeProfileSelection(arn) {
+    selectedProfiles.delete(arn);
+    selectedProfilesData.delete(arn);
+    
+    // 更新卡片状态
+    document.querySelectorAll('.profile-card').forEach(card => {
+        if (card.dataset.profileId === arn) {
+            card.classList.remove('selected');
+        }
+    });
+    
+    updateSelectionUI();
+    updateSelectedProfilesMini();
 }
 
 // 全选
@@ -1861,6 +1938,19 @@ function toggleSidebar() {
     document.getElementById('sidebar').classList.toggle('collapsed');
 }
 
+function toggleReferences() {
+    const menu = document.getElementById('referencesMenu');
+    menu.classList.toggle('show');
+}
+
+// 点击外部关闭 references 菜单
+document.addEventListener('click', (e) => {
+    if (!e.target.closest('.references-dropdown')) {
+        const menu = document.getElementById('referencesMenu');
+        if (menu) menu.classList.remove('show');
+    }
+});
+
 // 启动
 init();
 
@@ -1958,17 +2048,23 @@ function filterMapDashboard() {
                 profileInvocations: profileInvocations,
                 hasProfiles: projectProfiles.length > 0
             };
-        }).filter(m => m.modelInvocations > 0 || m.profileInvocations > 0);
+        }).filter(m => m.modelInvocations > 0 || m.profileInvocations > 0 || m.hasProfiles);
     }
     
     renderMapDashboard(filteredModels, timeRange);
 }
 
 function renderMapDashboard(models, timeRange) {
+    // 分类逻辑：
+    // 1. Direct Model Calls: foundation model，没有 MAP profiles，有直接调用
+    // 2. System Profiles: system profile，没有 MAP profiles（避免重复）
+    // 3. Partial Coverage: 有 MAP profiles，还有直接调用（包括 foundation 和 system）
+    // 4. Fully Migrated: 有 MAP profiles，没有直接调用（不要求 profile 有调用量）
+    
     const noProfiles = models.filter(m => !m.hasProfiles && m.modelInvocations > 0 && m.modelType !== 'system');
-    const systemModels = models.filter(m => m.modelType === 'system');
+    const systemModels = models.filter(m => m.modelType === 'system' && !m.hasProfiles);
     const withProfiles = models.filter(m => m.hasProfiles && m.modelInvocations > 0);
-    const completed = models.filter(m => m.hasProfiles && m.modelInvocations === 0 && m.profileInvocations > 0);
+    const completed = models.filter(m => m.hasProfiles && m.modelInvocations === 0);
     
     const totalModels = models.length;
     const needMigration = noProfiles.length + systemModels.length;  // 需要创建 MAP profiles 的
@@ -2015,8 +2111,9 @@ function renderMapDashboard(models, timeRange) {
             </h3>
             <div class="section-content">`;
         noProfiles.forEach(m => {
+            const canSelect = m.modelType === 'foundation' || m.modelType === 'system';
             html += `
-                <div class="map-model-group">
+                <div class="map-model-group ${canSelect ? 'selectable' : ''} ${mapSelectedModels.has(m.modelId) ? 'selected' : ''}" ${canSelect ? `onclick="toggleMapModelSelection('${escapeHtml(m.modelId)}', this)"` : ''}>
                     <div class="model-header">
                         <div class="model-title-wrapper">
                             <strong>${escapeHtml(m.modelId)}</strong>
@@ -2044,8 +2141,9 @@ function renderMapDashboard(models, timeRange) {
             </h3>
             <div class="section-content">`;
         systemModels.forEach(m => {
+            const canSelect = m.modelType === 'system';
             html += `
-                <div class="map-model-group">
+                <div class="map-model-group ${canSelect ? 'selectable' : ''} ${mapSelectedModels.has(m.modelId) ? 'selected' : ''}" ${canSelect ? `onclick="toggleMapModelSelection('${escapeHtml(m.modelId)}', this)"` : ''}>
                     <div class="model-header">
                         <div class="model-title-wrapper">
                             <strong>${escapeHtml(m.modelId)}</strong>
@@ -2323,5 +2421,113 @@ async function showMapModelDetails(event, model) {
     } else {
         // 对于没有找到的 foundation model，显示信息
         showToast(`Model ${escapeHtml(model.modelId)}: Direct calls ${model.modelInvocations.toLocaleString()}. Consider creating MAP profiles.`, 'info');
+    }
+}
+
+
+// MAP Dashboard 选择模型
+function toggleMapModelSelection(modelId, el) {
+    // Ignore clicks on buttons/links inside the card
+    if (event && (event.target.closest('.btn-copy-inline') || event.target.closest('.collapse-icon'))) return;
+    if (mapSelectedModels.has(modelId)) {
+        mapSelectedModels.delete(modelId);
+        el.classList.remove('selected');
+    } else {
+        mapSelectedModels.add(modelId);
+        el.classList.add('selected');
+    }
+    updateMapSelectionUI();
+}
+
+// 更新 MAP 选择 UI
+function updateMapSelectionUI() {
+    const count = mapSelectedModels.size;
+    const countEl = document.getElementById('mapSelectedCount');
+    const btnEl = document.getElementById('mapCreateBtn');
+    
+    if (countEl) countEl.textContent = count;
+    if (btnEl) btnEl.disabled = count === 0;
+}
+
+// 从 MAP Dashboard 创建 profiles
+async function createProfilesFromMap() {
+    if (mapSelectedModels.size === 0) {
+        showToast('Please select at least one model', 'warning');
+        return;
+    }
+    
+    // 切换到 View Profiles 页面
+    switchToView('profiles');
+    
+    // 如果 View Profiles 还没有加载数据，先加载
+    if (!allProfiles || Object.keys(allProfiles).length === 0) {
+        showToast('Loading profiles...', 'info');
+        await loadData();
+    }
+    
+    // 清除所有过滤器，确保所有卡片都可见
+    filters.providers.clear();
+    filters.scope = null;
+    filters.modelId = '';
+    
+    // 重新渲染以显示所有卡片
+    renderProfiles();
+    
+    // 等待渲染完成后选中
+    setTimeout(() => {
+        selectProfilesByModelIds(mapSelectedModels);
+    }, 100);
+}
+
+// 根据 modelId 选中 View Profiles 中的卡片
+function selectProfilesByModelIds(modelIds) {
+    let selectedCount = 0;
+    let skippedCount = 0;
+    let notFoundIds = [];
+    
+    // 遍历所有 profile 卡片
+    document.querySelectorAll('.profile-card').forEach(card => {
+        const cardModelId = card.dataset.modelId;
+        
+        // 检查是否在选中列表中
+        if (cardModelId && modelIds.has(cardModelId)) {
+            // 检查卡片是否可选（没有被禁用）
+            const isDisabled = card.style.cursor === 'not-allowed';
+            
+            if (isDisabled) {
+                skippedCount++;
+                console.log(`Skipped disabled model: ${cardModelId} (${card.title})`);
+            } else if (!card.classList.contains('selected')) {
+                // 如果还没选中且可选，则选中
+                card.click();
+                selectedCount++;
+            }
+        }
+    });
+    
+    // 检查哪些没找到
+    modelIds.forEach(id => {
+        const found = Array.from(document.querySelectorAll('.profile-card')).some(
+            card => card.dataset.modelId === id
+        );
+        if (!found) {
+            notFoundIds.push(id);
+        }
+    });
+    
+    let message = '';
+    if (selectedCount > 0) {
+        message = `Selected ${selectedCount} models from MAP Dashboard`;
+    }
+    if (skippedCount > 0) {
+        message += (message ? '. ' : '') + `Skipped ${skippedCount} incompatible models`;
+    }
+    
+    if (message) {
+        showToast(message, selectedCount > 0 ? 'success' : 'warning');
+    }
+    
+    if (notFoundIds.length > 0) {
+        console.warn('Models not found in View Profiles:', notFoundIds);
     }
 }

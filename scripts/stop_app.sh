@@ -15,7 +15,7 @@ if [ -f "$PID_FILE" ]; then
     if ps -p "$PID" > /dev/null 2>&1; then
         PROCESS_CMD=$(ps -p "$PID" -o cmd= 2>/dev/null)
         
-        if echo "$PROCESS_CMD" | grep -q "python.*app.py"; then
+        if echo "$PROCESS_CMD" | grep -iq "python.*app.py"; then
             echo "Found application process: PID=$PID"
             kill "$PID" 2>/dev/null
             sleep 2
@@ -50,7 +50,7 @@ fi
 # 验证是否是 Python 应用
 PROCESS_CMD=$(ps -p "$PID" -o cmd= 2>/dev/null)
 
-if echo "$PROCESS_CMD" | grep -q "python.*app.py"; then
+if echo "$PROCESS_CMD" | grep -iq "python.*app.py"; then
     echo "Found application on port $PORT: PID=$PID"
     kill "$PID" 2>/dev/null
     sleep 2

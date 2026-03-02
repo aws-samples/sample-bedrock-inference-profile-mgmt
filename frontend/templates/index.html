@@ -2,7 +2,7 @@
 <html>
 <head>
     <title>Bedrock Profile Manager</title>
-    <link rel="stylesheet" href="/static/style.css?v=7">
+    <link rel="stylesheet" href="/static/style.css?v=11">
 </head>
 <body>
     <div class="layout">
@@ -61,9 +61,22 @@
             <div id="profilesView" class="view active">
                 <div class="view-header">
                     <h2>Inference Profiles & Foundation Models</h2>
-                    <button onclick="showProfileHelp()" class="btn-help" title="Learn about profile types">
-                        ❓ Profile Types
-                    </button>
+                    <div class="header-icons">
+                        <button onclick="showProfileHelp()" class="btn-icon" title="Profile Types">❓</button>
+                        <div class="references-dropdown">
+                            <button onclick="toggleReferences()" class="btn-icon" title="References">📚</button>
+                            <div class="references-menu" id="referencesMenu">
+                                <div class="references-section">Amazon Bedrock</div>
+                                <a href="https://docs.aws.amazon.com/bedrock/latest/userguide/models-supported.html" target="_blank">📖 Supported Models</a>
+                                <a href="https://docs.aws.amazon.com/bedrock/latest/userguide/inference-profiles.html" target="_blank">📖 Inference Profiles</a>
+                                <div class="references-section">MAP 2.0</div>
+                                <a href="https://s3.us-west-2.amazonaws.com/map-2.0-customer-documentation/html/AWSMapDocs/what-is-service.html" target="_blank">📄 MAP 2.0 Documentation</a>
+                                <a href="https://aws.amazon.com/migration-acceleration-program/" target="_blank">🌐 Migration Acceleration Program</a>
+                                <div class="references-section">Project</div>
+                                <a href="https://github.com/aws-samples/sample-bedrock-inference-profile-mgmt" target="_blank">🔗 GitHub Repository</a>
+                            </div>
+                        </div>
+                    </div>
                 </div>
                 <div id="providerFilters" class="filters"></div>
                 <div id="profilesList"></div>
@@ -86,7 +99,7 @@
                         <li>Valid for MAP 2.0 Migration plans accepted <strong>after 16-Dec-2024</strong>.</li>
                         <li><strong>Excludes</strong> spend from AWS Marketplace Private Offers.</li>
                     </ol>
-                    <div class="map-disclaimer">⚙️ 本工具仅供辅助参考，具体商务事宜请联系您的 AWS BD/SA 团队；协议条款与资格认定请以最新商务合同为准。</div>
+                    <div class="map-disclaimer">⚙️ This tool is for reference only. For business matters, please contact your AWS BD/SA team. Eligibility and terms are subject to your latest commercial agreement.</div>
                 </div>
                 <div class="form-container">
                     <div class="form-group">
@@ -132,12 +145,18 @@
                             <option value="30">Last 30 days</option>
                         </select>
                         <button onclick="loadMapDashboard()" class="btn-primary">🔄 Refresh</button>
+                        <button onclick="createProfilesFromMap()" class="btn-primary" id="mapCreateBtn" disabled>
+                            ➕ Create MAP Profiles for Selected (<span id="mapSelectedCount">0</span>)
+                        </button>
                     </div>
                 </div>
-                <div class="map-notice map-notice-compact">
-                    <span class="map-notice-title">⚠️ MAP 2.0 Reminder:</span>
-                    Only usage through <strong>Inference Profiles with correct map-migrated tag</strong> is eligible for MAP credits. Direct foundation model calls are NOT counted.
-                    <span class="map-disclaimer-inline">本工具仅供辅助参考，具体商务事宜请联系您的 AWS BD/SA 团队；协议条款与资格认定请以最新商务合同为准。</span>
+                <div class="map-notice">
+                    <div class="map-notice-title">⚠️ MAP 2.0 Reminder</div>
+                    <div style="margin: 8px 0;">
+                        Only usage through <strong>Inference Profiles with correct map-migrated tag</strong> is eligible for MAP credits.<br>
+                        Direct foundation model calls are NOT counted.
+                    </div>
+                    <div class="map-disclaimer">This tool is for reference only. Please contact your AWS BD/SA team for eligibility and terms.</div>
                 </div>
                 <div id="mapSummary"></div>
                 <div id="mapContent"></div>
@@ -189,52 +208,49 @@
     <div id="profileHelpModal" class="modal" style="display: none;">
         <div class="modal-content" style="max-width: 700px;">
             <div class="modal-header">
-                <h2>📚 Inference Profile Types</h2>
+                <h2>Inference Profile Types <a href="https://docs.aws.amazon.com/bedrock/latest/userguide/inference-profiles.html" target="_blank" style="font-size: 13px; font-weight: 400; color: #0073bb; text-decoration: none; margin-left: 8px;">Learn More →</a></h2>
                 <button onclick="closeProfileHelp()" class="btn-close">✕</button>
             </div>
-            <div class="modal-body" style="line-height: 1.8;">
+            <div class="modal-body">
                 <div class="help-section">
-                    <h3>🌍 Global Profiles</h3>
-                    <p>Cross-region profiles that route requests to any commercial AWS region globally for optimal performance and availability.</p>
-                    <p><strong>Example:</strong> <code>global.anthropic.claude-sonnet-4-...</code></p>
-                    <p><strong>ARN:</strong> <code>arn:aws:bedrock:REGION:ACCOUNT:inference-profile/global.MODEL-ID</code></p>
+                    <h3>Global Profiles</h3>
+                    <p class="help-desc">Cross-region profiles that route requests to any commercial AWS region globally for optimal performance and availability.</p>
+                    <div class="help-example">Example: <code>global.anthropic.claude-sonnet-4-20250514-v1:0</code></div>
+                    <div class="help-arn">
+                        <code>arn:aws:bedrock:us-east-1:ACCOUNT:inference-profile/global.anthropic.claude-sonnet-4-20250514-v1:0</code>
+                    </div>
                 </div>
 
                 <div class="help-section">
-                    <h3>🗺️ Regional Profiles</h3>
-                    <p>Geographic-specific profiles that route within a defined region (US, EU, APAC, etc.) for data residency requirements.</p>
-                    <p><strong>Example:</strong> <code>us.anthropic.claude-3-haiku-...</code>, <code>eu.anthropic.claude-...</code></p>
-                    <p><strong>ARN:</strong> <code>arn:aws:bedrock:REGION:ACCOUNT:inference-profile/GEOGRAPHY.MODEL-ID</code></p>
+                    <h3>Regional Profiles</h3>
+                    <p class="help-desc">Geographic-specific profiles that route within a defined region (US, EU, APAC) for data residency requirements.</p>
+                    <div class="help-example">Example: <code>us.anthropic.claude-3-5-haiku-20241022-v1:0</code></div>
+                    <div class="help-arn">
+                        <code>arn:aws:bedrock:us-east-1:ACCOUNT:inference-profile/us.anthropic.claude-3-5-haiku-20241022-v1:0</code>
+                    </div>
                 </div>
 
                 <div class="help-section">
-                    <h3>📦 Application Profiles</h3>
-                    <p>Custom profiles you create to configure specific models with tags and settings for your applications.</p>
-                    <p><strong>Example:</strong> <code>web-test-my-profile</code>, <code>prod-chatbot-profile</code></p>
-                    <p><strong>ARN:</strong> <code>arn:aws:bedrock:REGION:ACCOUNT:application-inference-profile/PROFILE-ID</code></p>
+                    <h3>Application Profiles</h3>
+                    <p class="help-desc">Custom profiles you create to configure specific models with tags and settings for your applications.</p>
+                    <div class="help-example">Example: <code>web-test-claude-sonnet-4</code></div>
+                    <div class="help-arn">
+                        <code>arn:aws:bedrock:us-east-1:123456789012:application-inference-profile/abc123def456</code>
+                    </div>
                 </div>
 
                 <div class="help-section">
-                    <h3>🤖 Foundation Models</h3>
-                    <p>Base models provided by AWS and partners, invoked directly without inference profiles.</p>
-                    <p><strong>Example:</strong> <code>anthropic.claude-sonnet-4-...</code>, <code>amazon.nova-pro-v1:0</code></p>
-                    <p><strong>ARN:</strong> <code>arn:aws:bedrock:REGION::foundation-model/MODEL-ID</code></p>
-                </div>
-
-                <div class="help-section" style="background: #f0f8ff; padding: 15px; border-radius: 8px; margin-top: 20px;">
-                    <h3>📖 Learn More</h3>
-                    <p>For detailed information about inference profiles and cross-region inference:</p>
-                    <a href="https://docs.aws.amazon.com/bedrock/latest/userguide/inference-profiles.html" 
-                       target="_blank" 
-                       class="btn-link"
-                       style="display: inline-block; margin-top: 10px; color: #0073bb; text-decoration: none; font-weight: bold;">
-                        📄 AWS Bedrock Inference Profiles Documentation →
-                    </a>
+                    <h3>Foundation Models</h3>
+                    <p class="help-desc">Base models provided by AWS and partners, invoked directly without inference profiles.</p>
+                    <div class="help-example">Example: <code>anthropic.claude-sonnet-4-20250514-v1:0</code></div>
+                    <div class="help-arn">
+                        <code>arn:aws:bedrock:us-east-1::foundation-model/anthropic.claude-sonnet-4-20250514-v1:0</code>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
 
-    <script src="/static/app.js?v=8"></script>
+    <script src="/static/app.js?v=11"></script>
 </body>
 </html>

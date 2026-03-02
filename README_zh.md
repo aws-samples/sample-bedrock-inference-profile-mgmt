@@ -1,46 +1,33 @@
 # Bedrock Inference Profile 管理工具
 
-基于Web的AWS Bedrock Inference Profile管理工具，支持CloudWatch监控和MAP（迁移加速计划）仪表板。
+基于 Web 的 AWS Bedrock Inference Profile 管理工具，支持 CloudWatch 监控和 MAP（迁移加速计划）仪表板。
 
 [English](README.md) | 简体中文
 
+## ⚠️ 免责声明
+
+> **本工具仅供参考。商务相关问题请联系您的 AWS BD/SA 团队。资格和条款以您最新的商业协议为准。**
+
 ## 功能特性
 
-### 📋 查看Profiles
-- 浏览所有系统定义的inference profiles和foundation models
-- 按供应商筛选（Anthropic、Amazon、Meta、Mistral、Cohere、AI21）
-- 按区域筛选（全球、美国、欧洲、亚太）
-- 多选profiles进行批量操作
-- 搜索和过滤功能
+### 📋 查看 Profiles
+浏览和搜索所有系统定义的 inference profiles 和 foundation models。按供应商、范围和 Model ID 筛选。点击卡片选择 profiles 进行批量操作。
 
-### ➕ 创建Profiles
-- 批量创建application inference profiles
-- 通过UI创建的profiles自动添加 `web-test-` 前缀
-- 自定义标签支持（包括 `map-migrated` 标签）
-- YAML导出用于自动化
-- Profile名称验证
+### ➕ 创建 Profiles
+批量创建 application inference profiles，支持自定义命名和标签，包括 MAP 2.0 的 `map-migrated` 标签。可导出 YAML 配置。
 
-### 📦 我的Profiles
-- 查看和管理你的application profiles
-- 在线编辑标签
-- 带确认的删除功能
-- 按标签过滤
-- AWS Profile和区域选择器
+### 📦 我的 Profiles
+查看、编辑标签和删除你的 application inference profiles。
 
-### 📊 Bedrock MAP仪表板
-- 监控MAP项目的CloudWatch调用指标
-- 跟踪foundation models和inference profiles的使用情况
-- 按MAP项目ID筛选（`map-migrated` 标签）
-- 可配置时间范围（1、7、14、30天）
-- 支持ON_DEMAND和INFERENCE_PROFILE模型类型
-- 实时调用统计
+### 📊 Bedrock MAP 仪表板
+监控 MAP 项目的 CloudWatch 调用指标。通过四种状态分类（直接模型调用、系统 Profiles、部分覆盖、完全迁移）跟踪迁移进度。可直接从仪表板选择模型创建 MAP profiles。
 
 ## 快速开始
 
 ### 前置要求
 - Python 3.9+
-- 已配置AWS凭证（`~/.aws/credentials`）
-- Bedrock服务访问权限
+- 已配置 AWS 凭证（`~/.aws/credentials`）
+- Bedrock 服务访问权限
 
 ### 安装
 
@@ -61,91 +48,55 @@ scripts/start_app.sh -f
 
 ```
 bedrock-inference-profile-mgmt/
-├── backend/              # 后端代码
-│   ├── app.py           # Flask应用
-│   ├── bedrock_tagger.py # 核心业务逻辑
-│   └── requirements.txt  # Python依赖
-├── frontend/            # 前端代码
-│   ├── static/          # JavaScript和CSS
-│   │   ├── app.js       # 主应用逻辑
-│   │   └── style.css    # 样式
-│   └── templates/       # HTML模板
-│       └── index.html
-├── logs/                # 应用日志（自动轮转，保留10天）
-└── scripts/             # 工具脚本
-    └── start_app.sh     # 应用启动器
+├── backend/              # Flask 应用和业务逻辑
+├── frontend/             # HTML、JavaScript、CSS
+├── logs/                 # 应用日志（自动轮转，保留10天）
+└── scripts/              # 启动/停止脚本
 ```
-
-## API接口
-
-| 方法 | 端点 | 描述 |
-|--------|----------|-------------|
-| GET | `/api/profiles` | 列出系统profiles和foundation models |
-| GET | `/api/application-profiles` | 列出application profiles |
-| POST | `/api/create-profiles` | 批量创建profiles |
-| PUT | `/api/profile/tags` | 更新profile标签 |
-| DELETE | `/api/profile` | 删除profile |
-| POST | `/api/map-dashboard` | 获取MAP监控数据 |
-| GET | `/api/map-projects` | 列出MAP项目ID |
-| GET | `/api/aws-profiles` | 列出AWS凭证配置 |
 
 ## 配置
 
-### AWS凭证
-应用使用 `~/.aws/credentials` 中的AWS凭证配置。在UI的下拉菜单中选择你的profile。
-
-### 区域
-支持的区域：
-- us-east-1（弗吉尼亚北部）
-- us-west-2（俄勒冈）
-- ap-south-1（孟买）
-- ap-northeast-1（东京）
-- ap-southeast-1（新加坡）
-- eu-central-1（法兰克福）
-- eu-west-1（爱尔兰）
-- eu-west-2（伦敦）
-- eu-west-3（巴黎）
-- ca-central-1（加拿大中部）
+### AWS 凭证
+应用使用 `~/.aws/credentials` 中的 AWS 凭证配置。在 UI 的下拉菜单中选择你的 profile。
 
 ### 默认设置
-- 默认AWS Profile：`default`
+- 默认 AWS Profile：`default`
 - 默认区域：`us-east-1`
 - 默认端口：`3010`
 - 日志保留：10天
 
 ## 使用示例
 
-### 创建带MAP标签的Profiles
+### 创建带 MAP 标签的 Profiles
 
-1. 导航到"Create Profiles"
-2. 从列表中选择profiles
+1. 进入"View Profiles"页面，点击卡片选择模型
+2. 点击"Create Profiles"进入创建页面
 3. 添加标签：
    - Key：`map-migrated`
-   - Value：`mig12345`（你的MAP项目ID）
+   - Value：`migXXXXXXXXXX`（你的 MAP 项目 ID）
 4. 点击"Create Selected Profiles"
 
-### 监控MAP项目
+### 监控 MAP 项目
 
-1. 导航到"Bedrock MAP Dashboard"
-2. 选择AWS Profile和区域
-3. 选择时间范围（1-30天）
-4. 按MAP项目ID筛选（可选）
-5. 查看按模型分类的调用指标
+1. 进入"Bedrock MAP Dashboard"
+2. 选择 AWS Profile 和区域
+3. 选择时间范围（3、7 或 30 天）
+4. 按 MAP 项目 ID 筛选（可选）
+5. 查看按迁移状态分组的调用指标
 
-### 管理现有Profiles
+### 从仪表板创建 MAP Profiles
 
-1. 导航到"My Profiles"
-2. 查看所有application profiles
-3. 点击编辑图标在线编辑标签
-4. 通过确认对话框删除profiles
+1. 在 MAP Dashboard 中，点击"Direct Model Calls"或"System Profiles"区域的模型卡片选中
+2. 点击"Create MAP Profiles for Selected"
+3. 自动跳转到创建页面,模型已预选
 
 ## 注意事项
 
-- 通过Web UI创建的profiles自动添加 `web-test-` 前缀
+## 注意事项
+
 - 删除操作不可逆（需要确认）
-- CloudWatch指标有5-10分钟延迟
-- 日志自动轮转并保留10天
-- MAP仪表板仅显示ON_DEMAND和INFERENCE_PROFILE模型类型
+- CloudWatch 指标有 5-10 分钟延迟
+- 日志自动轮转并保留 10 天
 
 ## 安全
 
@@ -153,4 +104,4 @@ bedrock-inference-profile-mgmt/
 
 ## 许可证
 
-本库采用MIT-0许可证。详见LICENSE文件。
+本库采用 MIT-0 许可证。详见 LICENSE 文件。

@@ -192,6 +192,83 @@ body {
     background: #005a9e;
 }
 
+.references-dropdown {
+    position: relative;
+}
+
+.references-menu {
+    display: none;
+    position: absolute;
+    top: 100%;
+    right: 0;
+    margin-top: 4px;
+    background: white;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.15);
+    min-width: 280px;
+    z-index: 1000;
+    padding: 8px 0;
+}
+
+.references-menu.show {
+    display: block;
+}
+
+.references-menu a {
+    display: block;
+    padding: 10px 16px;
+    color: #333;
+    text-decoration: none;
+    font-size: 14px;
+    transition: background 0.15s;
+}
+
+.references-menu a:hover {
+    background: #f0f8ff;
+    color: #0073bb;
+}
+
+.references-section {
+    padding: 8px 16px 4px;
+    font-size: 12px;
+    font-weight: 600;
+    color: #888;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    border-top: 1px solid #eee;
+    margin-top: 4px;
+}
+
+.references-section:first-child {
+    border-top: none;
+    margin-top: 0;
+}
+
+.header-icons {
+    display: flex;
+    gap: 4px;
+    align-items: center;
+}
+
+.btn-icon {
+    background: transparent;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 16px;
+    width: 34px;
+    height: 34px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.2s;
+}
+
+.btn-icon:hover {
+    background: #f0f0f0;
+}
+
 .view-actions {
     display: flex;
     gap: 12px;
@@ -463,6 +540,20 @@ input:focus, select:focus {
     box-shadow: 0 4px 12px rgba(0,0,0,0.1);
     transform: translateY(-2px);
     z-index: 10;
+}
+
+.profile-card.disabled {
+    cursor: not-allowed;
+    border-left: 3px solid #aaa;
+}
+
+.profile-card.disabled .card-info {
+    opacity: 0.5;
+}
+
+.profile-card.disabled:hover {
+    transform: none;
+    box-shadow: none;
 }
 
 /* Modal 浮窗 */
@@ -1849,8 +1940,8 @@ input:focus, select:focus {
 }
 
 .help-section {
-    margin-bottom: 24px;
-    padding-bottom: 20px;
+    margin-bottom: 20px;
+    padding-bottom: 16px;
     border-bottom: 1px solid #e0e0e0;
 }
 
@@ -1861,28 +1952,43 @@ input:focus, select:focus {
 
 .help-section h3 {
     color: #232f3e;
-    font-size: 18px;
-    margin-bottom: 12px;
+    font-size: 15px;
+    margin-bottom: 8px;
     font-weight: 600;
 }
 
-.help-section p {
-    margin: 8px 0;
+.help-desc {
+    margin: 0 0 8px;
     color: #545b64;
+    font-size: 13px;
+    line-height: 1.5;
+}
+
+.help-example {
+    font-size: 13px;
+    color: #333;
+    margin-bottom: 6px;
+}
+
+.help-arn {
+    background: #f8f8f8;
+    border-left: 3px solid #0073bb;
+    padding: 6px 10px;
+    border-radius: 0 4px 4px 0;
 }
 
 .help-section code {
-    background: #f4f4f4;
-    padding: 2px 8px;
-    border-radius: 4px;
+    background: transparent;
+    padding: 0;
     font-family: 'Monaco', 'Courier New', monospace;
-    font-size: 13px;
+    font-size: 12px;
     color: #d13212;
+    word-break: break-all;
 }
 
-.help-section strong {
-    color: #232f3e;
-    font-weight: 600;
+.help-arn code {
+    color: #0073bb;
+    font-size: 11px;
 }
 
 .btn-link {
@@ -1955,4 +2061,83 @@ input:focus, select:focus {
 .map-disclaimer-inline {
     color: #856404;
     font-size: 12px;
+}
+
+
+/* Mini 选中提示区 */
+.selected-profiles-mini {
+    display: none;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin: 8px 0;
+    padding: 8px;
+    background: #f0f8ff;
+    border-radius: 4px;
+    border: 1px solid #d0e8ff;
+}
+
+.mini-profile-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 8px;
+    background: white;
+    border: 1px solid #0073bb;
+    border-radius: 3px;
+    font-size: 12px;
+    color: #0073bb;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.mini-profile-tag:hover {
+    background: #ffe0e0;
+    border-color: #d13212;
+    color: #d13212;
+}
+
+.mini-tag-close {
+    font-weight: bold;
+    font-size: 14px;
+}
+
+/* MAP Dashboard checkbox */
+.map-model-group.selectable {
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.map-model-group.selectable:hover {
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    transform: translateY(-2px);
+}
+
+.map-model-group.selected {
+    border: 2px solid #0066cc;
+    background: #f0f8ff;
+    position: relative;
+}
+
+.map-model-group.selected::before {
+    content: '✓';
+    position: absolute;
+    top: 8px;
+    right: 40px;
+    width: 24px;
+    height: 24px;
+    background: #0066cc;
+    color: white;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    font-size: 14px;
+    z-index: 1;
+}
+
+.map-selection-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
 }

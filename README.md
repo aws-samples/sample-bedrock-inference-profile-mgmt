@@ -2,36 +2,25 @@
 
 A web-based management tool for AWS Bedrock Inference Profiles with CloudWatch monitoring and MAP (Migration Acceleration Program) dashboard support.
 
+[English](README.md) | [简体中文](README_zh.md)
+
+## ⚠️ Disclaimer
+
+> **This tool is for reference only. For business matters, please contact your AWS BD/SA team. Eligibility and terms are subject to your latest commercial agreement.**
+
 ## Features
 
 ### 📋 View Profiles
-- Browse all system-defined inference profiles and foundation models
-- Filter by vendor (Anthropic, Amazon, Meta, Mistral, Cohere, AI21)
-- Filter by region (Global, US, EU, APAC)
-- Multi-select profiles for batch operations
-- Search and filter capabilities
+Browse and search all system-defined inference profiles and foundation models. Filter by vendor, scope, and model ID. Select profiles by clicking cards for batch operations.
 
 ### ➕ Create Profiles
-- Batch create application inference profiles
-- Automatic `web-test-` prefix for profiles created via UI
-- Custom tagging support (including `map-migrated` tags)
-- YAML export for automation
-- Profile name validation
+Batch create application inference profiles with custom naming and tagging support, including `map-migrated` tags for MAP 2.0. Export configurations as YAML.
 
 ### 📦 My Profiles
-- View and manage your application profiles
-- Edit tags inline
-- Delete profiles with confirmation
-- Filter by tags
-- AWS Profile and Region selector
+View, edit tags, and delete your application inference profiles.
 
 ### 📊 Bedrock MAP Dashboard
-- Monitor CloudWatch invocation metrics for MAP projects
-- Track usage across foundation models and inference profiles
-- Filter by MAP project ID (`map-migrated` tag)
-- Configurable time range (1, 7, 14, 30 days)
-- Support for ON_DEMAND and INFERENCE_PROFILE model types
-- Real-time invocation statistics
+Monitor CloudWatch invocation metrics for MAP projects. Track migration progress across four status categories (Direct Model Calls, System Profiles, Partial Coverage, Fully Migrated). Select models directly from the dashboard to create MAP profiles.
 
 ## Quick Start
 
@@ -59,51 +48,16 @@ Access the application at: http://localhost:3010
 
 ```
 bedrock-inference-profile-mgmt/
-├── backend/              # Backend code
-│   ├── app.py           # Flask application
-│   ├── bedrock_tagger.py # Core business logic
-│   └── requirements.txt  # Python dependencies
-├── frontend/            # Frontend code
-│   ├── static/          # JavaScript and CSS
-│   │   ├── app.js       # Main application logic
-│   │   └── style.css    # Styles
-│   └── templates/       # HTML templates
-│       └── index.html
-├── logs/                # Application logs (auto-rotated, 10-day retention)
-└── scripts/             # Utility scripts
-    └── start_app.sh     # Application launcher
+├── backend/              # Flask app and business logic
+├── frontend/             # HTML, JavaScript, CSS
+├── logs/                 # Application logs (auto-rotated, 10-day retention)
+└── scripts/              # Start/stop scripts
 ```
-
-## API Endpoints
-
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/api/profiles` | List system profiles and foundation models |
-| GET | `/api/application-profiles` | List application profiles |
-| POST | `/api/create-profiles` | Batch create profiles |
-| PUT | `/api/profile/tags` | Update profile tags |
-| DELETE | `/api/profile` | Delete a profile |
-| POST | `/api/map-dashboard` | Get MAP monitoring data |
-| GET | `/api/map-projects` | List MAP project IDs |
-| GET | `/api/aws-profiles` | List AWS credential profiles |
 
 ## Configuration
 
 ### AWS Credentials
 The application uses AWS credential profiles from `~/.aws/credentials`. Select your profile from the dropdown in the UI.
-
-### Regions
-Supported regions:
-- us-east-1 (N. Virginia)
-- us-west-2 (Oregon)
-- ap-south-1 (Mumbai)
-- ap-northeast-1 (Tokyo)
-- ap-southeast-1 (Singapore)
-- eu-central-1 (Frankfurt)
-- eu-west-1 (Ireland)
-- eu-west-2 (London)
-- eu-west-3 (Paris)
-- ca-central-1 (Canada Central)
 
 ### Default Settings
 - Default AWS Profile: `default`
@@ -115,35 +69,34 @@ Supported regions:
 
 ### Creating Profiles with MAP Tags
 
-1. Navigate to "Create Profiles"
-2. Select profiles from the list
+1. Navigate to "View Profiles" and select models by clicking cards
+2. Click "Create Profiles" to go to the create view
 3. Add tags:
    - Key: `map-migrated`
-   - Value: `mig12345` (your MAP project ID)
+   - Value: `migXXXXXXXXXX` (your MAP project ID)
 4. Click "Create Selected Profiles"
 
 ### Monitoring MAP Projects
 
 1. Navigate to "Bedrock MAP Dashboard"
 2. Select AWS Profile and Region
-3. Choose time range (1-30 days)
+3. Choose time range (3, 7, or 30 days)
 4. Filter by MAP project ID (optional)
-5. View invocation metrics by model
+5. View invocation metrics grouped by migration status
 
-### Managing Existing Profiles
+### Creating MAP Profiles from Dashboard
 
-1. Navigate to "My Profiles"
-2. View all application profiles
-3. Edit tags inline by clicking the edit icon
-4. Delete profiles with confirmation dialog
+1. In the MAP Dashboard, click models in "Direct Model Calls" or "System Profiles" sections to select them
+2. Click "Create MAP Profiles for Selected"
+3. Automatically switches to Create Profiles view with models pre-selected
 
 ## Notes
 
-- Profiles created via Web UI automatically get `web-test-` prefix
+## Notes
+
 - Delete operations are irreversible (confirmation required)
 - CloudWatch metrics have 5-10 minute delay
 - Logs are automatically rotated and retained for 10 days
-- MAP Dashboard only shows ON_DEMAND and INFERENCE_PROFILE model types
 
 ## Security
 

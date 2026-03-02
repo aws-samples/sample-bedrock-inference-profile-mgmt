@@ -456,8 +456,8 @@ def map_dashboard():
             app_profiles = app_profiles_by_source.get(model_id, [])
             profile_invocations = sum(p['invocations'] for p in app_profiles)
             
-            # 只显示有调用的模型（直接调用或 MAP profile 调用）
-            if invocations > 0 or profile_invocations > 0:
+            # 显示有调用的模型，或者有 MAP profiles 的模型（即使没有调用）
+            if invocations > 0 or profile_invocations > 0 or len(app_profiles) > 0:
                 result.append({
                     'modelId': model_id,
                     'modelType': model_type,
