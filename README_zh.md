@@ -27,7 +27,10 @@
 ### 前置要求
 - Python 3.9+
 - 已配置 AWS 凭证（`~/.aws/credentials`）
-- Bedrock 服务访问权限
+- IAM 用户/角色需附加以下策略：
+  - `AmazonBedrockFullAccess`
+  - `CloudWatchReadOnlyAccess`
+- 如果创建新 IAM 用户，需在创建后生成访问密钥并配置到 `~/.aws/credentials`
 
 ### 安装
 
@@ -40,6 +43,12 @@ scripts/start_app.sh
 
 # 强制重启（终止现有进程）
 scripts/start_app.sh -f
+
+# 停止应用
+scripts/stop_app.sh
+
+# 创建具有所需权限的 IAM 用户（可选）
+scripts/create_bedrock_tag_user.sh
 ```
 
 访问应用：http://localhost:3010

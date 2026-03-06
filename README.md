@@ -27,7 +27,10 @@ Monitor CloudWatch invocation metrics for MAP projects. Track migration progress
 ### Prerequisites
 - Python 3.9+
 - AWS credentials configured (`~/.aws/credentials`)
-- Bedrock service access
+- IAM user/role with the following policies attached:
+  - `AmazonBedrockFullAccess`
+  - `CloudWatchReadOnlyAccess`
+- If creating a new IAM user, generate access keys after creation and configure in `~/.aws/credentials`
 
 ### Installation
 
@@ -40,6 +43,12 @@ scripts/start_app.sh
 
 # Force restart (kills existing process)
 scripts/start_app.sh -f
+
+# Stop the application
+scripts/stop_app.sh
+
+# Create IAM user with required permissions (optional)
+scripts/create_bedrock_tag_user.sh
 ```
 
 Access the application at: http://localhost:3010
