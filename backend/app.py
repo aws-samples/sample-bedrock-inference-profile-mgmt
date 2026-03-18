@@ -291,6 +291,166 @@ def delete_profile():
         logger.error("DELETE /api/profile - profile_arn=%s, error=%s", profile_arn, str(e))
         return jsonify({'success': False, 'error': str(e)}), 500
 
+@app.route('/api/map-dashboard/v2/metrics', methods=['POST'])
+def map_dashboard_v2_metrics():
+    """Phase 1: CloudWatch metrics only - fast (~1s)"""
+    try:
+        data = request.json
+        profile = data.get('awsProfile', 'default')
+        region = data.get('region', 'us-west-2')
+        days = int(data.get('timeRange', 7))
+
+        logger.info("POST /api/map-dashboard/v2/metrics - profile=%s, region=%s, days=%d", profile, region, days)
+
+        session = boto3.Session(profile_name=profile)
+        cloudwatch = session.client('cloudwatch', region_name=region)
+
+        end_time = datetime.utcnow()
+        start_time = end_time - timedelta(days=days)
+        period = 3600 if days <= 1 else 86400
+
+        # Get all ModelIds with Invocations
+        model_metrics = cloudwatch.list_metrics(
+            Namespace='AWS/Bedrock',
+            MetricName='Invocations',
+            Dimensions=[{'Name': 'ModelId'}]
+        )
+
+        metric_queries = []
+        model_ids = []
+        for metric in model_metrics.get('Metrics', []):
+            model_id = next((d['Value'] for d in metric['Dimensions'] if d['Name'] == 'ModelId'), None)
+            if not model_id:
+                continue
+            model_ids.append(model_id)
+            metric_queries.append({
+                'Id': f'm{len(metric_queries)}',
+                'MetricStat': {
+                    'Metric': {
+                        'Namespace': 'AWS/Bedrock',
+                        'MetricName': 'Invocations',
+                        'Dimensions': [{'Name': 'ModelId', 'Value': model_id}]
+                    },
+                    'Period': period,
+                    'Stat': 'Sum'
+                }
+            })
+
+        invocations_by_model = {}
+        chunk_size = 500
+        for i in range(0, len(metric_queries), chunk_size):
+            chunk = metric_queries[i:i+chunk_size]
+            try:
+                response = cloudwatch.get_metric_data(
+                    MetricDataQueries=chunk, StartTime=start_time, EndTime=end_time
+                )
+                for idx, result in enumerate(response.get('MetricDataResults', [])):
+                    total = sum(result.get('Values', []))
+                    if total > 0:
+                        invocations_by_model[model_ids[i + idx]] = int(total)
+            except Exception as e:
+                logger.warning("Failed to get metrics chunk %d: %s", i, e)
+
+        # Classify: separate known models vs short app profile IDs
+        known_prefixes = {'global', 'us', 'eu', 'apac', 'ap', 'jp', 'ca', 'sa', 'me', 'af'}
+        models = []
+        app_profile_ids = {}  # short_id -> invocations
+
+        for model_id, invocations in invocations_by_model.items():
+            if '.' not in model_id and all(c.isalnum() for c in model_id):
+                app_profile_ids[model_id] = invocations
+                continue
+
+            parts = model_id.split('.', 1)
+            if parts[0] in known_prefixes and len(parts) > 1:
+                model_type = 'system'
+                scope = parts[0]
+            else:
+                model_type = 'foundation'
+                scope = ''
+
+            models.append({
+                'modelId': model_id,
+                'modelType': model_type,
+                'scope': scope,
+                'modelInvocations': invocations,
+                'profiles': [],
+                'profileInvocations': 0,
+                'hasProfiles': False
+            })
+
+        models.sort(key=lambda x: x['modelInvocations'], reverse=True)
+
+        return jsonify({
+            'success': True,
+            'models': models,
+            'appProfileIds': app_profile_ids
+        })
+
+    except Exception as e:
+        logger.error("map-dashboard/v2/metrics error: %s", e)
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/map-dashboard/v2/profiles', methods=['POST'])
+def map_dashboard_v2_profiles():
+    """Phase 2: Application profiles with tags - slower (~5s)"""
+    try:
+        data = request.json
+        profile = data.get('awsProfile', 'default')
+        region = data.get('region', 'us-west-2')
+        map_project = data.get('mapProject', '')
+
+        logger.info("POST /api/map-dashboard/v2/profiles - profile=%s, region=%s", profile, region)
+
+        session = boto3.Session(profile_name=profile)
+        tagger = BedrockTagger(session, region)
+
+        all_app_profiles = tagger.list_inference_profiles(type='APPLICATION')
+        app_profiles_by_source = {}
+
+        for p in all_app_profiles:
+            tags = {t['key']: t['value'] for t in p.get('tags', [])}
+            if 'AmazonDataZoneDomain' in tags:
+                continue
+            if 'map-migrated' not in tags:
+                continue
+            if map_project and tags['map-migrated'] != map_project:
+                continue
+
+            profile_id = p['inferenceProfileArn'].split('/')[-1]
+            model_arns = p.get('modelArn', [])
+            if not model_arns or not model_arns[0]:
+                continue
+
+            model_arn = model_arns[0]
+            if 'foundation-model/' in model_arn:
+                source_id = model_arn.split('foundation-model/')[-1]
+            elif 'inference-profile/' in model_arn:
+                source_id = model_arn.split('inference-profile/')[-1]
+            else:
+                continue
+
+            if source_id not in app_profiles_by_source:
+                app_profiles_by_source[source_id] = []
+
+            app_profiles_by_source[source_id].append({
+                'name': p.get('name', profile_id),
+                'arn': p['inferenceProfileArn'],
+                'profileId': profile_id,
+                'tags': tags
+            })
+
+        return jsonify({
+            'success': True,
+            'profilesBySource': app_profiles_by_source
+        })
+
+    except Exception as e:
+        logger.error("map-dashboard/v2/profiles error: %s", e)
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
 @app.route('/api/map-dashboard', methods=['POST'])
 def map_dashboard():
     """Get MAP monitoring data: system profiles and their application profiles"""

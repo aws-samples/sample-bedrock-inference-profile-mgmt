@@ -1058,7 +1058,7 @@ input:focus, select:focus {
 
 .create-cards-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(420px, 1fr));
     gap: 16px;
     margin-bottom: 24px;
 }
@@ -1617,23 +1617,17 @@ input:focus, select:focus {
     transition: all 0.3s ease-out;
     overflow: hidden;
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(450px, 1fr));
-    gap: 16px;
+    grid-template-columns: repeat(auto-fill, minmax(420px, 1fr));
+    gap: 12px;
 }
 
 .section-content.collapsed {
     display: block;
 }
 
-@media (min-width: 1400px) {
+@media (max-width: 700px) {
     .section-content {
-        grid-template-columns: repeat(3, 1fr);
-    }
-}
-
-@media (min-width: 900px) and (max-width: 1399px) {
-    .section-content {
-        grid-template-columns: repeat(2, 1fr);
+        grid-template-columns: 1fr;
     }
 }
 
@@ -1866,7 +1860,7 @@ input:focus, select:focus {
 
 .profiles-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
     gap: 8px;
     margin-bottom: 12px;
 }

@@ -25,7 +25,7 @@
                     <span class="icon">📦</span>
                     <span class="nav-text">My Profiles</span>
                 </a>
-                <a href="#" class="nav-item" data-view="map">
+                <a href="#" class="nav-item" data-view="mapv2">
                     <span class="icon">📊</span>
                     <span class="nav-text">Bedrock MAP Dashboard</span>
                 </a>
@@ -132,21 +132,21 @@
             </div>
 
             <!-- MAP Dashboard -->
-            <div id="mapView" class="view">
+            <div id="mapv2View" class="view">
                 <div class="view-header">
                     <h2>Bedrock MAP Dashboard</h2>
                     <div class="view-actions">
-                        <select id="mapProjectId" onchange="filterMapDashboard()">
+                        <select id="mapv2ProjectId" onchange="filterMapDashboardV2()">
                             <option value="">All MAP Projects</option>
                         </select>
-                        <select id="mapTimeRange" onchange="loadMapDashboard()">
+                        <select id="mapv2TimeRange" onchange="loadMapDashboardV2()">
                             <option value="3">Last 3 days</option>
                             <option value="7" selected>Last 7 days</option>
                             <option value="30">Last 30 days</option>
                         </select>
-                        <button onclick="loadMapDashboard()" class="btn-primary">🔄 Refresh</button>
-                        <button onclick="createProfilesFromMap()" class="btn-primary" id="mapCreateBtn" disabled>
-                            ➕ Create MAP Profiles for Selected (<span id="mapSelectedCount">0</span>)
+                        <button onclick="loadMapDashboardV2()" class="btn-primary">🔄 Refresh</button>
+                        <button onclick="createProfilesFromMapV2()" class="btn-primary" id="mapv2CreateBtn" disabled>
+                            ➕ Create MAP Profiles for Selected (<span id="mapv2SelectedCount">0</span>)
                         </button>
                     </div>
                 </div>
@@ -158,8 +158,8 @@
                     </div>
                     <div class="map-disclaimer">This tool is for reference only. Please contact your AWS BD/SA team for eligibility and terms.</div>
                 </div>
-                <div id="mapSummary"></div>
-                <div id="mapContent"></div>
+                <div id="mapv2Summary"></div>
+                <div id="mapv2Content"></div>
             </div>
 
             <!-- Generate YAML -->
