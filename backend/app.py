@@ -298,16 +298,22 @@ def map_dashboard_v2_metrics():
         data = request.json
         profile = data.get('awsProfile', 'default')
         region = data.get('region', 'us-west-2')
-        days = int(data.get('timeRange', 7))
-
-        logger.info("POST /api/map-dashboard/v2/metrics - profile=%s, region=%s, days=%d", profile, region, days)
 
         session = boto3.Session(profile_name=profile)
         cloudwatch = session.client('cloudwatch', region_name=region)
 
-        end_time = datetime.utcnow()
-        start_time = end_time - timedelta(days=days)
+        if data.get('startTime') and data.get('endTime'):
+            start_time = datetime.fromisoformat(data['startTime'].replace('Z', '+00:00')).replace(tzinfo=None)
+            end_time = datetime.fromisoformat(data['endTime'].replace('Z', '+00:00')).replace(tzinfo=None)
+            days = (end_time - start_time).days
+        else:
+            days = int(data.get('timeRange', 7))
+            end_time = datetime.utcnow()
+            start_time = end_time - timedelta(days=days)
+
         period = 3600 if days <= 1 else 86400
+
+        logger.info("POST /api/map-dashboard/v2/metrics - profile=%s, region=%s, days=%d", profile, region, days)
 
         # Get all ModelIds with Invocations
         model_metrics = cloudwatch.list_metrics(

@@ -293,6 +293,7 @@ function switchToView(view) {
     }
     // 切换到MAP Dashboard时加载数据
     if (view === 'mapv2') {
+        initMapv2DatePicker();
         loadMapProjectsV2();
         if (!cachedMapV2Metrics) {
             loadMapDashboardV2();
@@ -1429,12 +1430,27 @@ function downloadCSV(profiles, tags, region) {
 
 // 加载我的profiles
 let myProfilesData = [];
-let sortDirection = 'asc';
+let myProfilesPage = 1;
+const myProfilesPageSize = 20;
+let myProfilesSortCol = 'name';
+let myProfilesSortDir = 'asc';
 
 // 渲染 My Profiles 过滤区
 function renderMyProfilesFilters(tagKeys) {
     const container = document.getElementById('myProfilesFilters');
     if (!container) return;
+    
+    // 过滤掉 DataZone 相关的 tag keys
+    const filteredKeys = tagKeys.filter(k => k !== 'AmazonDataZoneDomain' && !k.startsWith('AmazonDataZone'));
+    
+    const tagInputsHtml = filteredKeys.map(key => 
+        `<div class="tag-filter-row">
+            <label class="tag-filter-label">${escapeHtml(key)}</label>
+            <span>=</span>
+            <input type="text" class="tag-filter-input" data-tag-key="${escapeHtml(key)}" 
+                   placeholder="e.g. ${escapeHtml(getTagValueHint(key))}">
+        </div>`
+    ).join('');
     
     safeSetHTML(container, `
         <div class="filters-container">
@@ -1442,29 +1458,32 @@ function renderMyProfilesFilters(tagKeys) {
                 <h3>🔽 Filters</h3>
                 <span class="filters-toggle">Click to expand/collapse</span>
             </div>
-            <div class="filters-content" id="myProfilesFiltersContent">
-                <div class="filter-section">
-                    <div class="filter-header">
-                        <h3>Filter by Tag</h3>
+            <div class="filters-content" id="myProfilesFiltersContent" style="display:grid; grid-template-columns:1fr; gap:12px;">
+                <div class="filter-row" style="display:flex; gap:16px; align-items:flex-start; flex-wrap:wrap;">
+                    <div style="flex:1; min-width:200px;">
+                        <div class="filter-header"><h3>Search by Name</h3></div>
+                        <input type="text" id="myProfilesNameFilter" placeholder="Type to filter by name..."
+                               style="width:100%; padding:8px; border:1px solid #d5dbdb; border-radius:6px;">
                     </div>
-                    <div class="filter-options" style="display: flex; gap: 8px;">
-                        <select id="tagKeyFilter" style="flex: 1; padding: 8px; border: 1px solid #d5dbdb; border-radius: 6px;">
-                            <option value="">-- Select Tag Key --</option>
-                            ${tagKeys.map(key => `<option value="${escapeHtml(key)}">${escapeHtml(key)}</option>`).join('')}
-                        </select>
-                        <input type="text" id="tagValueFilter" placeholder="Tag value" 
-                               style="flex: 1; padding: 8px; border: 1px solid #d5dbdb; border-radius: 6px;">
+                    <div style="flex:2; min-width:300px;">
+                        <div class="filter-header"><h3>Filter by Tags</h3></div>
+                        <div style="display:flex; gap:12px; flex-wrap:wrap;">
+                            ${filteredKeys.map(key => 
+                                `<div style="display:flex; align-items:center; gap:4px;">
+                                    <label class="tag-filter-label">${escapeHtml(key)}</label>
+                                    <span>=</span>
+                                    <input type="text" class="tag-filter-input" data-tag-key="${escapeHtml(key)}" 
+                                           placeholder="${escapeHtml(getTagValueHint(key))}"
+                                           style="width:140px; padding:6px 8px; border:1px solid #d5dbdb; border-radius:6px; font-size:13px;">
+                                </div>`
+                            ).join('')}
+                        </div>
                     </div>
-                </div>
-                
-                <div class="filter-section">
-                    <div class="filter-header">
-                        <h3>Exclude DataZone</h3>
-                    </div>
-                    <div class="filter-options">
+                    <div>
+                        <div class="filter-header"><h3>Options</h3></div>
                         <label class="checkbox-label">
-                            <input type="checkbox" id="excludeDataZoneMyProfiles" checked onchange="renderMyProfiles()">
-                            <span>Hide DataZone profiles</span>
+                            <input type="checkbox" id="excludeDataZoneMyProfiles" checked onchange="myProfilesPage=1;renderMyProfiles()">
+                            <span>Hide DataZone</span>
                         </label>
                     </div>
                 </div>
@@ -1472,16 +1491,19 @@ function renderMyProfilesFilters(tagKeys) {
         </div>
     `);
     
-    // 绑定过滤器事件
-    const tagKeyFilter = document.getElementById('tagKeyFilter');
-    const tagValueFilter = document.getElementById('tagValueFilter');
-    
-    if (tagKeyFilter) {
-        tagKeyFilter.addEventListener('change', renderMyProfiles);
+    document.getElementById('myProfilesNameFilter').addEventListener('input', () => { myProfilesPage=1; renderMyProfiles(); });
+    container.querySelectorAll('.tag-filter-input').forEach(input => {
+        input.addEventListener('input', () => { myProfilesPage=1; renderMyProfiles(); });
+    });
+}
+
+// 获取 tag value 的 hint（取第一个已有值作为示例）
+function getTagValueHint(tagKey) {
+    for (const p of myProfilesData) {
+        const tag = (p.tags||[]).find(t => t.key === tagKey);
+        if (tag) return tag.value;
     }
-    if (tagValueFilter) {
-        tagValueFilter.addEventListener('input', renderMyProfiles);
-    }
+    return '';
 }
 
 // 切换 My Profiles 过滤器
@@ -1538,42 +1560,59 @@ async function loadMyProfiles() {
     }
 }
 
-function sortMyProfiles() {
-    sortDirection = sortDirection === 'asc' ? 'desc' : 'asc';
+function sortMyProfiles(col) {
+    if (myProfilesSortCol === col) {
+        myProfilesSortDir = myProfilesSortDir === 'asc' ? 'desc' : 'asc';
+    } else {
+        myProfilesSortCol = col;
+        myProfilesSortDir = 'asc';
+    }
+    myProfilesPage = 1;
+    renderMyProfiles();
+}
+
+function goToMyProfilesPage(page) {
+    myProfilesPage = page;
     renderMyProfiles();
 }
 
 function renderMyProfiles() {
     const excludeDataZone = document.getElementById('excludeDataZoneMyProfiles')?.checked ?? true;
-    const tagKey = document.getElementById('tagKeyFilter')?.value || '';
-    const tagValue = document.getElementById('tagValueFilter')?.value.trim().toLowerCase() || '';
+    const nameFilter = (document.getElementById('myProfilesNameFilter')?.value || '').trim().toLowerCase();
     
     // 过滤 DataZone profiles
     let filtered = myProfilesData;
     if (excludeDataZone) {
-        filtered = myProfilesData.filter(p => 
+        filtered = filtered.filter(p => 
             !p.tags || !p.tags.some(t => t.key === 'AmazonDataZoneDomain')
         );
     }
     
-    // 按 tag key + value 过滤
-    if (tagKey && tagValue) {
-        filtered = filtered.filter(p => {
-            if (!p.tags) return false;
-            const tag = p.tags.find(t => t.key === tagKey);
-            return tag && tag.value.toLowerCase().includes(tagValue);
-        });
+    // 按名字过滤
+    if (nameFilter) {
+        filtered = filtered.filter(p => p.name.toLowerCase().includes(nameFilter));
     }
     
-    const sorted = [...filtered].sort((a, b) => {
-        const aVal = a.name.toLowerCase();
-        const bVal = b.name.toLowerCase();
-        
-        if (sortDirection === 'asc') {
-            return aVal > bVal ? 1 : -1;
-        } else {
-            return aVal < bVal ? 1 : -1;
+    // 按 tag 过滤（多个 tag key 输入框，全部匹配）
+    document.querySelectorAll('.tag-filter-input').forEach(input => {
+        const key = input.dataset.tagKey;
+        const val = input.value.trim().toLowerCase();
+        if (val) {
+            filtered = filtered.filter(p => 
+                p.tags && p.tags.some(t => t.key === key && t.value.toLowerCase().includes(val))
+            );
         }
+    });
+    
+    const sorted = [...filtered].sort((a, b) => {
+        let aVal, bVal;
+        switch (myProfilesSortCol) {
+            case 'status': aVal = a.status.toLowerCase(); bVal = b.status.toLowerCase(); break;
+            case 'tags': aVal = (a.tags||[]).map(t=>t.key).join(','); bVal = (b.tags||[]).map(t=>t.key).join(','); break;
+            default: aVal = a.name.toLowerCase(); bVal = b.name.toLowerCase();
+        }
+        const cmp = aVal > bVal ? 1 : aVal < bVal ? -1 : 0;
+        return myProfilesSortDir === 'asc' ? cmp : -cmp;
     });
     
     // 更新计数
@@ -1589,14 +1628,25 @@ function renderMyProfiles() {
         }
     }
     
-    const sortIcon = sortDirection === 'asc' ? '↑' : '↓';
+    // 分页
+    const totalPages = Math.max(1, Math.ceil(sorted.length / myProfilesPageSize));
+    if (myProfilesPage > totalPages) myProfilesPage = totalPages;
+    const startIdx = (myProfilesPage - 1) * myProfilesPageSize;
+    const pageData = sorted.slice(startIdx, startIdx + myProfilesPageSize);
+    
+    const sortIcon = (col) => myProfilesSortCol === col ? (myProfilesSortDir === 'asc' ? ' ↑' : ' ↓') : '';
     
     let html = '<div class="profiles-table"><table><thead><tr>';
-    html += `<th class="sortable" onclick="sortMyProfiles()">Name ${escapeHtml(sortIcon)}</th>`;
-    html += '<th>Model ARN</th><th>Status</th><th>Tags</th><th>Actions</th></tr></thead><tbody>';
+    html += `<th class="sortable" onclick="sortMyProfiles('name')">Name${escapeHtml(sortIcon('name'))}</th>`;
+    html += '<th>Model ARN</th>';
+    html += `<th class="sortable" onclick="sortMyProfiles('status')">Status${escapeHtml(sortIcon('status'))}</th>`;
+    html += `<th class="sortable" onclick="sortMyProfiles('tags')">Tags${escapeHtml(sortIcon('tags'))}</th>`;
+    html += '<th>Actions</th></tr></thead><tbody>';
     
-    sorted.forEach(p => {
-        const tagsStr = p.tags ? p.tags.map(t => `${t.key}=${t.value}`).join(', ') : 'None';
+    pageData.forEach(p => {
+        const tagsHtml = p.tags && p.tags.length > 0 
+            ? p.tags.map(t => `<span class="tag-badge"><span class="tag-badge-key">${escapeHtml(t.key)}</span>${escapeHtml(t.value)}</span>`).join(' ')
+            : '<span style="color:#888">None</span>';
         const modelArnStr = p.modelArn && p.modelArn.length > 0 ? p.modelArn.join('\n') : 'N/A';
         
         html += `
@@ -1604,7 +1654,7 @@ function renderMyProfiles() {
                 <td><strong>${escapeHtml(p.name)}</strong><br><small>${escapeHtml(p.inferenceProfileArn)}</small></td>
                 <td><small style="white-space:pre-line">${escapeHtml(modelArnStr)}</small></td>
                 <td><span class="status-badge ${p.status.toLowerCase()}">${escapeHtml(p.status)}</span></td>
-                <td>${escapeHtml(tagsStr)}</td>
+                <td>${tagsHtml}</td>
                 <td class="actions">
                     <button onclick='openCloudWatchMetrics(${JSON.stringify(p.modelId)}, "${escapeHtml(p.region)}")' class="btn-small" title="View CloudWatch Metrics">📊 Monitor</button>
                     <button onclick='editTags(${JSON.stringify(p.inferenceProfileArn)}, ${JSON.stringify(p.tags || [])})' class="btn-small">Edit Tags</button>
@@ -1615,6 +1665,28 @@ function renderMyProfiles() {
     });
     
     html += '</tbody></table></div>';
+    
+    // 分页控件
+    if (totalPages > 1) {
+        html += '<div class="pagination">';
+        html += `<button class="pagination-btn" onclick="goToMyProfilesPage(1)" ${myProfilesPage===1?'disabled':''}>«</button>`;
+        html += `<button class="pagination-btn" onclick="goToMyProfilesPage(${myProfilesPage-1})" ${myProfilesPage===1?'disabled':''}>‹</button>`;
+        
+        // 显示页码：当前页附近的页码
+        let startPage = Math.max(1, myProfilesPage - 2);
+        let endPage = Math.min(totalPages, myProfilesPage + 2);
+        if (startPage > 1) html += '<span class="pagination-ellipsis">…</span>';
+        for (let i = startPage; i <= endPage; i++) {
+            html += `<button class="pagination-btn ${i===myProfilesPage?'active':''}" onclick="goToMyProfilesPage(${i})">${i}</button>`;
+        }
+        if (endPage < totalPages) html += '<span class="pagination-ellipsis">…</span>';
+        
+        html += `<button class="pagination-btn" onclick="goToMyProfilesPage(${myProfilesPage+1})" ${myProfilesPage===totalPages?'disabled':''}>›</button>`;
+        html += `<button class="pagination-btn" onclick="goToMyProfilesPage(${totalPages})" ${myProfilesPage===totalPages?'disabled':''}>»</button>`;
+        html += `<span class="pagination-info">${startIdx+1}-${Math.min(startIdx+myProfilesPageSize, sorted.length)} of ${sorted.length}</span>`;
+        html += '</div>';
+    }
+    
     safeSetHTML('myProfilesList', html);
 }
 
@@ -2561,10 +2633,101 @@ async function loadMapProjectsV2() {
     }
 }
 
+// MAP Dashboard date range picker
+let mapv2DatePicker = null;
+let mapv2StartDate = null;
+let mapv2EndDate = null;
+
+function formatDateRangeLabel(start, end) {
+    const days = Math.round((end - start) / 86400000);
+    const fmt = d => d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    return `${fmt(start)} – ${fmt(end)}  (${days}d)`;
+}
+
+function setMapv2DateLabel(label) {
+    // Flatpickr overwrites value, so use setTimeout to set after
+    setTimeout(() => { document.getElementById('mapv2DateRange').value = label; }, 0);
+}
+
+function initMapv2DatePicker() {
+    if (mapv2DatePicker) return;
+    
+    const now = new Date();
+    const d7ago = new Date(now);
+    d7ago.setDate(d7ago.getDate() - 7);
+    mapv2StartDate = d7ago;
+    mapv2EndDate = now;
+    
+    const shortcuts = [
+        { label: 'Last 3 days', days: 3 },
+        { label: 'Last 7 days', days: 7 },
+        { label: 'Last 14 days', days: 14 },
+        { label: 'Last 30 days', days: 30 },
+        { label: 'Last 90 days', days: 90 },
+    ];
+    
+    mapv2DatePicker = flatpickr('#mapv2DateRange', {
+        mode: 'range',
+        dateFormat: 'Y-m-d',
+        defaultDate: [d7ago, now],
+        maxDate: 'today',
+        onReady: function(selectedDates, dateStr, instance) {
+            const container = document.createElement('div');
+            container.className = 'flatpickr-shortcuts';
+            shortcuts.forEach(s => {
+                const btn = document.createElement('button');
+                btn.textContent = s.label;
+                btn.type = 'button';
+                btn.className = 'flatpickr-shortcut-btn';
+                btn.addEventListener('click', () => {
+                    const end = new Date();
+                    const start = new Date();
+                    start.setDate(start.getDate() - s.days);
+                    instance.setDate([start, end], true);
+                    mapv2StartDate = start;
+                    mapv2EndDate = end;
+                    setMapv2DateLabel(s.label);
+                    instance.close();
+                });
+                container.appendChild(btn);
+            });
+            instance.calendarContainer.appendChild(container);
+        },
+        onChange: function(selectedDates) {
+            if (selectedDates.length === 2) {
+                mapv2StartDate = selectedDates[0];
+                mapv2EndDate = selectedDates[1];
+                setMapv2DateLabel(formatDateRangeLabel(selectedDates[0], selectedDates[1]));
+            }
+        },
+        onClose: function(selectedDates) {
+            if (selectedDates.length === 2) {
+                loadMapDashboardV2();
+            }
+        }
+    });
+    
+    document.getElementById('mapv2DateRange').value = 'Last 7 days';
+}
+
 async function loadMapDashboardV2() {
     const profile = document.getElementById('awsProfile').value;
     const region = document.getElementById('region').value;
-    const timeRange = document.getElementById('mapv2TimeRange').value;
+
+    if (!mapv2StartDate || !mapv2EndDate) {
+        const now = new Date();
+        mapv2EndDate = now;
+        mapv2StartDate = new Date(now);
+        mapv2StartDate.setDate(mapv2StartDate.getDate() - 7);
+    }
+
+    const fmt = d => d.toISOString().split('T')[0];
+    const payload = {
+        awsProfile: profile,
+        region,
+        startTime: fmt(mapv2StartDate) + 'T00:00:00Z',
+        endTime: fmt(mapv2EndDate) + 'T23:59:59Z'
+    };
 
     cachedMapV2Metrics = null;
     cachedMapV2Profiles = null;
@@ -2586,7 +2749,7 @@ async function loadMapDashboardV2() {
         const metricsRes = await fetch('/api/map-dashboard/v2/metrics', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ awsProfile: profile, region, timeRange })
+            body: JSON.stringify(payload)
         });
         const metricsData = await metricsRes.json();
 

@@ -1208,6 +1208,98 @@ input:focus, select:focus {
     white-space: nowrap;
 }
 
+/* Pagination */
+.pagination {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    margin-top: 16px;
+    padding: 12px 0;
+}
+.pagination-btn {
+    min-width: 36px;
+    height: 36px;
+    padding: 0 8px;
+    border: 1px solid #d5dbdb;
+    border-radius: 6px;
+    background: #fff;
+    cursor: pointer;
+    font-size: 14px;
+}
+.pagination-btn:hover:not(:disabled) { background: #f0f0f0; }
+.pagination-btn.active { background: #ff9900; color: #fff; border-color: #ff9900; font-weight: 600; }
+.pagination-btn:disabled { opacity: 0.4; cursor: default; }
+.pagination-ellipsis { padding: 0 4px; color: #888; }
+.pagination-info { margin-left: 12px; font-size: 13px; color: #555; }
+
+/* Tag value chips */
+.tag-value-chip {
+    padding: 4px 12px;
+    border: 1px solid #d5dbdb;
+    border-radius: 16px;
+    background: #fff;
+    cursor: pointer;
+    font-size: 13px;
+}
+.tag-value-chip:hover { background: #f0f0f0; }
+.tag-value-chip.active { background: #ff9900; color: #fff; border-color: #ff9900; }
+
+/* Tag filter rows */
+.tag-filter-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 6px;
+}
+.tag-filter-label {
+    min-width: 120px;
+    font-size: 13px;
+    font-weight: 600;
+    font-family: monospace;
+    color: #333;
+}
+
+/* Tag badges in table */
+.tag-badge {
+    display: inline-block;
+    padding: 2px 8px;
+    margin: 2px;
+    border-radius: 12px;
+    font-size: 12px;
+    background: #f0f3f5;
+    border: 1px solid #d5dbdb;
+    white-space: nowrap;
+}
+.tag-badge-key {
+    font-weight: 600;
+    margin-right: 2px;
+}
+.tag-badge-key::after { content: '='; font-weight: normal; color: #888; }
+
+/* MAP Dashboard date inputs */
+.mapv2-date-input { padding: 6px 8px; border: 1px solid #d5dbdb; border-radius: 6px; font-size: 13px; }
+.time-range-picker { display: flex; align-items: center; gap: 4px; }
+
+/* Flatpickr shortcuts */
+.flatpickr-shortcuts {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    padding: 8px;
+    border-top: 1px solid #e6e6e6;
+}
+.flatpickr-shortcut-btn {
+    padding: 4px 10px;
+    border: 1px solid #d5dbdb;
+    border-radius: 14px;
+    background: #fff;
+    cursor: pointer;
+    font-size: 12px;
+    white-space: nowrap;
+}
+.flatpickr-shortcut-btn:hover { background: #ff9900; color: #fff; border-color: #ff9900; }
+
 .btn-small {
     padding: 4px 8px;
     font-size: 12px;
@@ -1617,7 +1709,7 @@ input:focus, select:focus {
     transition: all 0.3s ease-out;
     overflow: hidden;
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(420px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
     gap: 12px;
 }
 
