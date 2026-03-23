@@ -99,7 +99,31 @@ The application uses AWS credential profiles from `~/.aws/credentials`. Select y
 2. Click "Create MAP Profiles for Selected"
 3. Automatically switches to Create Profiles view with models pre-selected
 
-## Notes
+## Optional Scripts
+
+### Create CloudWatch Dashboard
+Create a pre-built Bedrock analytics dashboard in CloudWatch.
+
+```bash
+# Default: region=us-west-2, profile=default
+scripts/create_bedrock_cloudwatch_dashboard_demo.sh
+
+# Custom settings
+REGION=us-east-1 AWS_PROFILE=my-profile DASHBOARD_NAME=MyDashboard scripts/create_bedrock_cloudwatch_dashboard_demo.sh
+```
+
+Additional IAM permissions required: `CloudWatchFullAccess` (or at minimum `cloudwatch:PutDashboard`)
+
+> Note: The Logs Insights widget requires [Bedrock model invocation logging](https://docs.aws.amazon.com/bedrock/latest/userguide/model-invocation-logging.html) to be enabled. If not needed, you can delete this widget from the dashboard after creation.
+
+### Create IAM User
+Create an IAM user with the required policies for this application.
+
+```bash
+scripts/create_bedrock_tag_user.sh
+```
+
+Additional IAM permissions required: `IAMFullAccess` (or at minimum `iam:CreateUser`, `iam:GetUser`, `iam:AttachUserPolicy`)
 
 ## Notes
 

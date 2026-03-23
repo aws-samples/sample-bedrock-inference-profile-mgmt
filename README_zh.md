@@ -99,7 +99,31 @@ bedrock-inference-profile-mgmt/
 2. 点击"Create MAP Profiles for Selected"
 3. 自动跳转到创建页面,模型已预选
 
-## 注意事项
+## 可选脚本
+
+### 创建 CloudWatch Dashboard
+在 CloudWatch 中创建预配置的 Bedrock 分析仪表板。
+
+```bash
+# 默认: region=us-west-2, profile=default
+scripts/create_bedrock_cloudwatch_dashboard_demo.sh
+
+# 自定义设置
+REGION=us-east-1 AWS_PROFILE=my-profile DASHBOARD_NAME=MyDashboard scripts/create_bedrock_cloudwatch_dashboard_demo.sh
+```
+
+额外 IAM 权限要求：`CloudWatchFullAccess`（或至少 `cloudwatch:PutDashboard`）
+
+> 注意：Logs Insights widget 需要先启用 [Bedrock 模型调用日志](https://docs.aws.amazon.com/bedrock/latest/userguide/model-invocation-logging.html)。如不需要，可在创建后从 Dashboard 中删除该 widget。
+
+### 创建 IAM 用户
+创建具有本应用所需策略的 IAM 用户。
+
+```bash
+scripts/create_bedrock_tag_user.sh
+```
+
+额外 IAM 权限要求：`IAMFullAccess`（或至少 `iam:CreateUser`、`iam:GetUser`、`iam:AttachUserPolicy`）
 
 ## 注意事项
 

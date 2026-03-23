@@ -1786,7 +1786,6 @@ input:focus, select:focus {
     border: 1px solid #ddd;
     border-radius: 8px;
     padding: 16px;
-    margin-bottom: 12px;
     transition: all 0.2s;
     box-shadow: 0 2px 4px rgba(0,0,0,0.05);
 }
@@ -1953,7 +1952,8 @@ input:focus, select:focus {
 .profiles-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-    gap: 8px;
+    gap: 12px;
+    margin-top: 8px;
     margin-bottom: 12px;
 }
 

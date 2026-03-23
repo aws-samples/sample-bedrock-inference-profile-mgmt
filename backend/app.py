@@ -367,7 +367,14 @@ def map_dashboard_v2_metrics():
                 app_profile_ids[model_id] = invocations
                 continue
 
-            parts = model_id.split('.', 1)
+            # Extract short model ID from ARN if needed
+            display_id = model_id
+            if 'foundation-model/' in model_id:
+                display_id = model_id.split('foundation-model/')[-1]
+            elif 'inference-profile/' in model_id:
+                display_id = model_id.split('inference-profile/')[-1]
+
+            parts = display_id.split('.', 1)
             if parts[0] in known_prefixes and len(parts) > 1:
                 model_type = 'system'
                 scope = parts[0]
@@ -376,7 +383,7 @@ def map_dashboard_v2_metrics():
                 scope = ''
 
             models.append({
-                'modelId': model_id,
+                'modelId': display_id,
                 'modelType': model_type,
                 'scope': scope,
                 'modelInvocations': invocations,
