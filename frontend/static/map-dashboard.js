@@ -450,8 +450,27 @@ function renderMapDashboardV2() {
     const appProfileIds = cachedMapV2Metrics.appProfileIds || {};
     const profilesBySource = cachedMapV2Profiles || null;
 
+    // Build inference-only model set from allProfiles (loaded async from /api/profiles)
+    const inferenceOnlyModels = new Set();
+    if (allProfiles && Object.keys(allProfiles).length > 0) {
+        for (const profiles of Object.values(allProfiles)) {
+            for (const p of profiles) {
+                if (p.inferenceOnly) inferenceOnlyModels.add(p.modelId);
+            }
+        }
+    }
+
     // Merge app profile data if available
-    let mergedModels = models.map(m => ({ ...m, profiles: [], profileInvocations: 0, hasProfiles: false }));
+    let mergedModels = models.map(m => {
+        const copy = { ...m, profiles: [], profileInvocations: 0, hasProfiles: false };
+        // Mark inference-profile-only models called directly as invalid
+        if (m.modelType === 'foundation' && inferenceOnlyModels.has(m.modelId)) {
+            copy.modelType = 'invalid_direct_call';
+        }
+        return copy;
+    });
+
+    const known = new Set(['global','us','eu','apac','ap','jp','ca','sa','me','af']);
 
     if (profilesBySource) {
         // Build profileId -> invocations lookup from appProfileIds
@@ -474,25 +493,80 @@ function renderMapDashboardV2() {
                 p.invocations = profileInvocations[p.profileId] || 0;
             });
 
-            const totalProfileInvocations = filteredProfiles.reduce((sum, p) => sum + p.invocations, 0);
+            // Split profiles by scope (global vs regional)
+            const globalProfiles = filteredProfiles.filter(p => p.scope === 'global');
+            const regionalProfiles = filteredProfiles.filter(p => p.scope !== 'global');
+            const totalProfileInvocations = filteredProfiles.reduce((s, p) => s + p.invocations, 0);
 
-            if (modelMap[sourceId]) {
-                // Source model already in list (has direct calls)
+            const isInvalid = modelMap[sourceId] && modelMap[sourceId].modelType === 'invalid_direct_call';
+
+            // Attach to foundation model entry if it exists and is valid
+            if (modelMap[sourceId] && !isInvalid) {
                 modelMap[sourceId].profiles = filteredProfiles;
                 modelMap[sourceId].profileInvocations = totalProfileInvocations;
                 modelMap[sourceId].hasProfiles = true;
-            } else {
-                // Source model has no direct calls, only MAP profile calls
-                const parts = sourceId.split('.', 1);
-                const known = new Set(['global','us','eu','apac','ap','jp','ca','sa','me','af']);
-                const p0 = sourceId.split('.')[0];
+            }
+
+            // Attach MAP profiles to matching system profiles by scope
+            let globalAttached = false;
+            let regionalAttached = false;
+            for (const m of mergedModels) {
+                if (m.modelType !== 'system') continue;
+                const base = m.modelId.substring(m.modelId.indexOf('.') + 1);
+                if (base !== sourceId) continue;
+
+                const isGlobalSystem = m.scope === 'global';
+                const scopedProfiles = isGlobalSystem ? globalProfiles : regionalProfiles;
+                if (scopedProfiles.length > 0) {
+                    m.profiles = [...scopedProfiles];
+                    m.profileInvocations = scopedProfiles.reduce((s, p) => s + p.invocations, 0);
+                    m.hasProfiles = true;
+                    if (isGlobalSystem) globalAttached = true;
+                    else regionalAttached = true;
+                }
+            }
+
+            // Create fallback entries for unattached profiles
+            if (!globalAttached && globalProfiles.length > 0 && (isInvalid || !modelMap[sourceId])) {
+                mergedModels.push({
+                    modelId: `global.${sourceId}`,
+                    modelType: 'system',
+                    scope: 'global',
+                    modelInvocations: 0,
+                    profiles: globalProfiles,
+                    profileInvocations: globalProfiles.reduce((s, p) => s + p.invocations, 0),
+                    hasProfiles: true
+                });
+                globalAttached = true;
+            }
+            // Fallback for unattached regional or all profiles
+            if (!modelMap[sourceId] && !isInvalid && !globalAttached && !regionalAttached) {
+                // No system profile match, no foundation model match — use sourceId as-is
                 mergedModels.push({
                     modelId: sourceId,
-                    modelType: known.has(p0) ? 'system' : 'foundation',
-                    scope: known.has(p0) ? p0 : '',
+                    modelType: 'foundation',
+                    scope: '',
                     modelInvocations: 0,
                     profiles: filteredProfiles,
                     profileInvocations: totalProfileInvocations,
+                    hasProfiles: true
+                });
+            } else if (!regionalAttached && regionalProfiles.length > 0 && (isInvalid || !modelMap[sourceId])) {
+                // Derive regional prefix from current region
+                const region = document.getElementById('region').value || 'us-east-1';
+                const regionPrefix = region.startsWith('eu') ? 'eu' :
+                    region.startsWith('ap') ? 'apac' :
+                    region.startsWith('me') ? 'me' :
+                    region.startsWith('af') ? 'af' :
+                    region.startsWith('sa') ? 'sa' :
+                    region.startsWith('ca') ? 'ca' : 'us';
+                mergedModels.push({
+                    modelId: `${regionPrefix}.${sourceId}`,
+                    modelType: 'system',
+                    scope: 'us',
+                    modelInvocations: 0,
+                    profiles: regionalProfiles,
+                    profileInvocations: regionalProfiles.reduce((s, p) => s + p.invocations, 0),
                     hasProfiles: true
                 });
             }
@@ -505,7 +579,8 @@ function renderMapDashboardV2() {
     }
 
     // Classify
-    const noProfiles = mergedModels.filter(m => !m.hasProfiles && m.modelInvocations > 0 && m.modelType !== 'system');
+    const invalidCalls = mergedModels.filter(m => m.modelType === 'invalid_direct_call');
+    const noProfiles = mergedModels.filter(m => !m.hasProfiles && m.modelInvocations > 0 && m.modelType === 'foundation');
     const systemModels = mergedModels.filter(m => m.modelType === 'system' && !m.hasProfiles);
     const withProfiles = mergedModels.filter(m => m.hasProfiles && m.modelInvocations > 0);
     const completed = mergedModels.filter(m => m.hasProfiles && m.modelInvocations === 0);
@@ -616,7 +691,7 @@ function renderMapDashboardV2() {
                     <div class="model-content">
                         <div class="model-summary">
                             <div class="metric">Total Calls: <strong>${formatCalls(totalCalls)}</strong></div>
-                            <div class="metric">🔴 Direct Model: <strong>${formatCalls(m.modelInvocations)}</strong> (${directPct}%)</div>
+                            <div class="metric">${m.modelType === 'system' ? '🔵 System Profile' : '🔴 Direct Model'}: <strong>${formatCalls(m.modelInvocations)}</strong> (${directPct}%)</div>
                             <div class="metric">🟢 MAP Profiles: <strong>${formatCalls(m.profileInvocations)}</strong> (${appPct}%)</div>
                         </div>
                         <div style="margin-top: 12px; font-weight: 600;">MAP Application Profiles:</div>
@@ -658,6 +733,20 @@ function renderMapDashboardV2() {
         html += '</div></div>';
     }
 
+    // ⛔ Invalid Direct Calls (inference-profile-only models called directly)
+    if (invalidCalls.length > 0) {
+        html += `<div class="map-section">
+            <h3 class="section-title" style="color: #6c757d; border-left-color: #6c757d; background: #f8f9fa;" onclick="toggleSection(this)">
+                <span>⛔ Invalid Direct Calls (${escapeHtml(String(invalidCalls.length))}) — These models require inference profiles</span>
+                <span class="collapse-icon">▼</span>
+            </h3>
+            <div class="section-content">`;
+        invalidCalls.forEach(m => {
+            html += renderMapV2ModelCard(m, false);
+        });
+        html += '</div></div>';
+    }
+
     // Loading indicator for profiles phase 2
     if (!profilesBySource && mapV2ProfilesLoading) {
         html += `<div class="loading" style="margin-top:16px;padding:16px;background:#fff8e1;border:1px solid #ffe082;border-radius:8px;">
@@ -684,7 +773,7 @@ function renderMapV2ModelCard(m, selectable) {
             </div>
             <div class="model-content">
                 <div class="model-summary">
-                    <div class="metric">${m.modelType === 'system' ? 'System Profile' : 'Direct Model'} Calls: <strong>${formatCalls(m.modelInvocations)}</strong></div>
+                    <div class="metric">${m.modelType === 'system' ? 'System Profile' : m.modelType === 'invalid_direct_call' ? '⛔ Invalid Direct' : 'Direct Model'} Calls: <strong>${formatCalls(m.modelInvocations)}</strong></div>
                     <div class="metric">MAP Profiles: <span class="badge-alert">None</span></div>
                 </div>
             </div>

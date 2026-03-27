@@ -451,7 +451,8 @@ def map_dashboard_v2_profiles():
                 'name': p.get('name', profile_id),
                 'arn': p['inferenceProfileArn'],
                 'profileId': profile_id,
-                'tags': tags
+                'tags': tags,
+                'scope': 'global' if any('bedrock:::' in a for a in model_arns) else 'regional'
             })
 
         return jsonify({
