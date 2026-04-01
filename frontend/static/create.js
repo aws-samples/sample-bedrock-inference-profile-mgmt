@@ -10,7 +10,6 @@ function updateSelectedProfilesList() {
         return;
     }
     
-    const today = new Date().toISOString().slice(0, 10).replace(/-/g, '');
     const region = document.getElementById('region').value;
     
     let html = '<div class="info-banner">💡 Please modify the profile name and tags as needed before creating.</div>';
@@ -31,7 +30,7 @@ function updateSelectedProfilesList() {
             .replace(/-v\d+:\d+$/, '')         // -v1:0
             .replace(/:\d+$/, '');             // :0
         
-        const defaultName = `${cleanName}-${today}-tmp`;
+        const defaultName = generateProfileName(cleanName);
         
         // 判断 scope
         const provider = data.provider || 'Unknown';
@@ -45,8 +44,7 @@ function updateSelectedProfilesList() {
                 <button class="card-remove-btn" onclick="removeSelectedProfile('${escapeHtml(data.arn)}')" title="Remove">✕</button>
                 <div class="card-name-edit">
                     <input type="text" class="profile-name-input-inline" value="${escapeHtml(defaultName)}" 
-                           data-arn="${escapeHtml(data.arn)}" placeholder="Enter custom name"
-                           oninput="validateProfileName(this)">
+                           data-arn="${escapeHtml(data.arn)}" placeholder="Enter custom name">
                 </div>
                 <div class="card-badges">
                     <span class="badge ${data.model_type}">${escapeHtml(data.model_type.toUpperCase())}</span>
@@ -62,13 +60,6 @@ function updateSelectedProfilesList() {
     
     html += '</div>';
     safeSetHTML(container, html);
-    
-    // 初始标红所有 -tmp 输入框
-    setTimeout(() => {
-        document.querySelectorAll('.profile-name-input-inline').forEach(input => {
-            validateProfileName(input);
-        });
-    }, 0);
 }
 
 // 移除选中的 profile
@@ -85,15 +76,9 @@ function removeSelectedProfile(arn) {
     updateSelectionUI();
 }
 
-// 校验 profile name 输入框
+// 校验 profile name 输入框（保留用于扩展）
 function validateProfileName(input) {
-    if (input.value.trim().endsWith('-tmp')) {
-        input.style.border = '2px solid #d13212';
-        input.style.background = '#fff5f5';
-    } else {
-        input.style.border = '';
-        input.style.background = '';
-    }
+    // 名称由弹窗模板生成，不再强制 -tmp 校验
 }
 
 // 添加tag输入行（Create视图）
@@ -118,7 +103,7 @@ function removeTagRow(btn) {
 async function createProfiles() {
     if (selectedProfiles.size === 0) return;
     
-    // 校验 1: 检查 map-migrated tag 是否包含 XXXX
+    // 校验 1: 检查 map-migrated tag 是否包含 XXXX 或缺少 mig 前缀
     const tagRows = document.querySelectorAll('#createTagInputs .tag-input-row');
     let hasInvalidTag = false;
     let invalidTagMessage = '';
@@ -126,11 +111,18 @@ async function createProfiles() {
     tagRows.forEach(row => {
         const key = row.querySelector('.tag-key').value.trim();
         const value = row.querySelector('.tag-value').value.trim();
-        if (key === 'map-migrated' && value.includes('XXXX')) {
-            hasInvalidTag = true;
-            invalidTagMessage = 'Please replace "XXXX" in map-migrated tag with actual project ID';
-            row.querySelector('.tag-value').style.border = '2px solid #d13212';
-            row.querySelector('.tag-value').style.background = '#fff5f5';
+        if (key === 'map-migrated') {
+            if (value.includes('XXXX')) {
+                hasInvalidTag = true;
+                invalidTagMessage = 'Please replace "XXXX" in map-migrated tag with actual project ID';
+            } else if (!value.startsWith('mig')) {
+                hasInvalidTag = true;
+                invalidTagMessage = 'map-migrated tag value must start with "mig" prefix (e.g. mig112233AABBCC)';
+            }
+            if (hasInvalidTag) {
+                row.querySelector('.tag-value').style.border = '2px solid #d13212';
+                row.querySelector('.tag-value').style.background = '#fff5f5';
+            }
         }
     });
     
@@ -139,24 +131,24 @@ async function createProfiles() {
         return;
     }
     
-    // 校验 2: 检查 profile name 是否包含 -tmp
+    // 校验 2: 检查 profile name 是否有重名
     const nameInputs = document.querySelectorAll('.profile-name-input-inline');
-    let hasDefaultName = false;
-    
+    const nameCount = {};
     nameInputs.forEach(input => {
-        if (input.value.trim().endsWith('-tmp')) {
-            hasDefaultName = true;
-            input.style.border = '2px solid #d13212';
-            input.style.background = '#fff5f5';
-        }
+        const name = input.value.trim();
+        nameCount[name] = (nameCount[name] || 0) + 1;
     });
-    
-    if (hasDefaultName) {
-        await showConfirmDialog(
-            'Validation Warning',
-            'Some profile names still contain "-tmp" suffix (highlighted in red). Please customize the names before creating.',
-            'OK'
-        );
+    const duplicates = Object.entries(nameCount).filter(([, c]) => c > 1);
+    if (duplicates.length > 0) {
+        nameInputs.forEach(input => {
+            if (nameCount[input.value.trim()] > 1) {
+                input.style.border = '2px solid #d13212';
+                input.style.background = '#fff5f5';
+            }
+        });
+        await showConfirmDialog('Validation Error',
+            `Duplicate profile names found: ${duplicates.map(([n, c]) => `"${n}" (×${c})`).join(', ')}. Each profile must have a unique name.`,
+            'OK');
         return;
     }
     

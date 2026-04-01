@@ -64,29 +64,17 @@ aws cloudwatch put-dashboard \
             "height": 8,
             "properties": {
                 "metrics": [
-                    [ { "expression": "SEARCH('\''{AWS/Bedrock,ModelId} MetricName=\"EstimatedTPMQuotaUsage\"'\'', '\''Maximum'\'', 300)", "id": "e1" } ]
+                    [ { "expression": "SEARCH('\''{AWS/Bedrock,ModelId} MetricName=\"EstimatedTPMQuotaUsage\"'\'', '\''Sum'\'', 60)", "id": "e1" } ]
                 ],
-                "view": "bar",
+                "view": "timeSeries",
                 "stacked": false,
                 "region": "'"$REGION"'",
-                "title": "TPM 配额使用率 (%) - 峰值",
-                "period": 300,
+                "title": "TPM Quota Consumption by Model / 按模型 TPM 用量",
+                "period": 60,
                 "yAxis": {
                     "left": {
-                        "label": "Percent",
-                        "min": 0,
-                        "max": 100
+                        "label": "Tokens/Min"
                     }
-                },
-                "annotations": {
-                    "horizontal": [
-                        {
-                            "label": "Warning",
-                            "value": 80,
-                            "fill": "above",
-                            "color": "#ff7f0e"
-                        }
-                    ]
                 }
             }
         },
